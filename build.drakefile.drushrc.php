@@ -79,7 +79,9 @@ function drake_php_lint($context) {
       if (trim($message) == '') {
         continue;
       }
-      if ((!preg_match('/^(.*)Deprecated:/', $message) || $this->deprecatedAsError) && !preg_match('/^No syntax errors detected/', $message)) {
+      // @todo: if checking for deprecated code:
+      //   preg_match('/^(.*)Deprecated:/', $message)
+      if (!preg_match('/^No syntax errors detected/', $message)) {
         if (!isset($bad_files[(string) $file])) {
           $bad_files[(string) $file] = array();
         }
