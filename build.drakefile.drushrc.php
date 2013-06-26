@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @file
+ * Generic code checking/testing and analysis tasks.
+ */
+
 $api = 1;
 
 /*
@@ -45,6 +50,9 @@ $actions['php-lint'] = array(
   ),
 );
 
+/**
+ * Action callback; lint PHP files.
+ */
 function drake_php_lint($context) {
   $command = 'php 2>&1 -n -l ';
   // @todo the following makes PHP report everything, including deprecated
@@ -73,7 +81,7 @@ function drake_php_lint($context) {
         drush_log($message, 'error');
       }
     }
-    if (sizeof($bad_files)) {
+    if (count($bad_files)) {
       drake_action_error('Syntax error in files.');
       return;
     }
@@ -96,6 +104,9 @@ $actions['php-debug'] = array(
   ),
 );
 
+/**
+ * Action callback; check files for debugging statements.
+ */
 function drake_php_debug($context) {
   // @todo Make this configurable through the action.
   $debug = array(
@@ -113,7 +124,7 @@ function drake_php_debug($context) {
     ' dpq\(',
 
   );
-  $command = 'grep -nHE "(' . join('|', $debug) . ')" ';
+  $command = 'grep -nHE "(' . implode('|', $debug) . ')" ';
   $overall_status = 'ok';
 
   foreach ($context['files'] as $file) {
@@ -132,7 +143,7 @@ function drake_php_debug($context) {
       array_push($bad_files, $message);
       drush_log($message, 'error');
     }
-    if (sizeof($bad_files)) {
+    if (count($bad_files)) {
       drake_action_error('Debug statements found in files.');
       return;
     }
@@ -140,7 +151,8 @@ function drake_php_debug($context) {
 }
 
 /**
- * JS lint action. Runs the files through JavaScriptLint to check for syntax errors.
+ * JS lint action. Runs the files through JavaScriptLint to check for syntax
+ * errors.
  */
 $actions['js-lint'] = array(
   'default_message' => 'PHP linting files',
@@ -154,6 +166,9 @@ $actions['js-lint'] = array(
   ),
 );
 
+/**
+ * Action callback; Check JS files for syntax errors.
+ */
 function drake_js_lint($context) {
   $command = 'jsl 2>&1 -nologo -nofilelisting -process ';
   $overall_status = 'ok';
@@ -165,22 +180,28 @@ function drake_js_lint($context) {
     drush_shell_exec($command . '"' . $file . '"');
     $messages = drush_shell_exec_output();
     if (!preg_match('/^(\d+) error(.*?), (\d+) warning/', end($messages), $matches)) {
-      drush_log(dt('Unexpected response from jsl: @cmd - @result', array('@cmd' => $command, '@result' => join("\n", $messages))), 'error');
+      drush_log(dt('Unexpected response from jsl: @cmd - @result',
+          array(
+            '@cmd' => $command,
+            '@result' => implode("\n", $messages),
+          )), 'error');
     }
-    
+
     array_pop($messages);
     $messages = array_filter($messages);
-    
+
     $status = $matches[1] > 0 ? 'error' : ($matches[3] > 0 ? 'warning' : 'ok');
     switch ($status) {
       case 'error':
         $overall_status = $status;
-        drush_log(join("\n", $messages), $status);
+        drush_log(implode("\n", $messages), $status);
         break 2;
+
       case 'warning':
         $overall_status = $overall_status === 'error' ? $overall_status : $status;
-        drush_log(join("\n", $messages), $status);
+        drush_log(implode("\n", $messages), $status);
         break;
+
       case 'ok':
       default:
         break;
@@ -194,7 +215,7 @@ function drake_js_lint($context) {
 
 
 /**
- * PHP debug statement check action. Greps files for common debug statements.
+ * JS debug statement check action. Greps files for common debug statements.
  */
 $actions['js-debug'] = array(
   'default_message' => 'Checking JS files for debug statements',
@@ -208,13 +229,16 @@ $actions['js-debug'] = array(
   ),
 );
 
+/**
+ * Action callback; check JS files for common debug statements.
+ */
 function drake_js_debug($context) {
   // @todo Make this configurable through the action.
   $debug = array(
     ' console.log\(',
 
   );
-  $command = 'grep -nHE "(' . join('|', $debug) . ')" ';
+  $command = 'grep -nHE "(' . implode('|', $debug) . ')" ';
   $overall_status = 'ok';
 
   foreach ($context['files'] as $file) {
@@ -233,7 +257,7 @@ function drake_js_debug($context) {
       array_push($bad_files, $message);
       drush_log($message, 'error');
     }
-    if (sizeof($bad_files)) {
+    if (count($bad_files)) {
       drake_action_error('Debug statements found in files.');
       return;
     }
@@ -241,7 +265,7 @@ function drake_js_debug($context) {
 }
 
 /**
- * PHP md action. Runs the files through PHP to check for syntax errors.
+ * PHPMD action. Runs the files through PHPMD to check for potential problems.
  */
 $actions['php-md'] = array(
   'default_message' => 'PHP mess detection',
@@ -255,6 +279,9 @@ $actions['php-md'] = array(
   ),
 );
 
+/**
+ * Action callback; check PHP files for protential problems.
+ */
 function drake_php_md($context) {
   $command = 'phpmd 2>&1 ';
   $suffix = ' text codesize,controversial,design,naming,unusedcode';
@@ -265,10 +292,10 @@ function drake_php_md($context) {
     }
     drush_shell_exec($command . '"' . $file . '"' . $suffix);
     $messages = drush_shell_exec_output();
-    
-    // Remove empty lines
+
+    // Remove empty lines.
     $messages = array_filter($messages);
-    
+
     if (!empty($messages)) {
       foreach ($messages as $message) {
         drush_log($message, 'warning');
@@ -278,7 +305,7 @@ function drake_php_md($context) {
 }
 
 /**
- * PHP md action. Runs the files through PHP to check for syntax errors.
+ * PHPCPD action. Runs the files through PHPCPD to check for duplicate code.
  */
 $actions['php-cpd'] = array(
   'default_message' => 'PHP copy/paste detection',
@@ -292,6 +319,10 @@ $actions['php-cpd'] = array(
   ),
 );
 
+
+/**
+ * Action callback; check PHP files for duplicate code.
+ */
 function drake_php_cpd($context) {
   $command = 'phpcpd 2>&1 ';
 
@@ -305,12 +336,16 @@ function drake_php_cpd($context) {
     // Get status from the 3rd last line of message
     // @fixme Too flaky assuming 3rd last line is duplication status?
     if (count($messages) < 5 || !preg_match('/^(\d+\.\d+)\% duplicated/', $messages[count($messages) - 3], $matches)) {
-      drush_log(dt('Unexpected response from phpcpd: @cmd - @result', array('@cmd' => $command, '@result' => join("\n", $messages))), 'error');
+      drush_log(dt('Unexpected response from phpcpd: @cmd - @result',
+          array(
+            '@cmd' => $command,
+            '@result' => implode("\n", $messages),
+          )), 'error');
     }
-    
-    // The first and last two lines are irrelevant
+
+    // The first and last two lines are irrelevant.
     $messages = array_slice($messages, 2, -2);
-    
+
     // Higher than 0% duplication?
     if ($matches[1] > 0) {
       foreach ($messages as $message) {
@@ -321,7 +356,7 @@ function drake_php_cpd($context) {
 }
 
 /**
- * PHP md action. Runs the files through PHP to check for syntax errors.
+ * PHPCS action. Runs the files through PHPCS to check coding style.
  */
 $actions['php-cs'] = array(
   'default_message' => 'PHP code sniffer',
@@ -343,6 +378,9 @@ $actions['php-cs'] = array(
   ),
 );
 
+/**
+ * Action callback; check PHP files for coding style.
+ */
 function drake_php_cs($context) {
   $standard = $context['standard'];
   $encoding = $context['encoding'];
@@ -358,15 +396,19 @@ function drake_php_cs($context) {
     // Get status from the 3rd last line of message
     // @fixme Too flaky assuming 3rd last line is duplication status?
     if (count($messages) < 2 || !preg_match('/^Time: (.*?) seconds, Memory: (.*?)/', $messages[count($messages) - 2])) {
-      drush_log(dt('Unexpected response from phpcpd: @cmd - @result', array('@cmd' => $command, '@result' => join("\n", $messages))), 'error');
+      drush_log(dt('Unexpected response from phpcpd: @cmd - @result',
+          array(
+            '@cmd' => $command,
+            '@result' => implode("\n", $messages),
+          )), 'error');
     }
-    
-    // The last two lines are irrelevant
+
+    // The last two lines are irrelevant.
     $messages = array_slice($messages, 0, -2);
 
     // Any messages left?
     if (!empty($messages)) {
-      drush_log(join("\n", $messages), 'warning');
+      drush_log(implode("\n", $messages), 'warning');
     }
   }
 }
