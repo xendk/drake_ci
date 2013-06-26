@@ -54,15 +54,14 @@ $actions['php-lint'] = array(
  * Action callback; lint PHP files.
  */
 function drake_php_lint($context) {
-  $command = 'php 2>&1 -n -l ';
-  // @todo the following makes PHP report everything, including deprecated
-  // code. Add as an option.
-  // $command .= '-d error_reporting=32767 ';
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Linting  @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec($command . '"' . $file . '"');
+    // @todo the following makes PHP report everything, including deprecated
+    // code. Add as an option.
+    // $command .= '-d error_reporting=32767 ';
+    drush_shell_exec('php 2>&1 -n -l "%s"', $file);
     $messages = drush_shell_exec_output();
 
     $bad_files = array();
@@ -124,15 +123,13 @@ function drake_php_debug($context) {
     ' dpq\(',
 
   );
-  $command = 'grep -nHE "(' . implode('|', $debug) . ')" ';
   $overall_status = 'ok';
 
   foreach ($context['files'] as $file) {
-    // exec($command.'"'.$file.'" 2>&1', $messages);
     if ($context['verbose']) {
       drush_log(dt('Checking @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec($command . '"' . $file . '"');
+    drush_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file);
     $messages = drush_shell_exec_output();
 
     $bad_files = array();
@@ -170,19 +167,18 @@ $actions['js-lint'] = array(
  * Action callback; Check JS files for syntax errors.
  */
 function drake_js_lint($context) {
-  $command = 'jsl 2>&1 -nologo -nofilelisting -process ';
   $overall_status = 'ok';
 
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Linting  @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec($command . '"' . $file . '"');
+    drush_shell_exec('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file);
     $messages = drush_shell_exec_output();
     if (!preg_match('/^(\d+) error(.*?), (\d+) warning/', end($messages), $matches)) {
       drush_log(dt('Unexpected response from jsl: @cmd - @result',
           array(
-            '@cmd' => $command,
+            '@cmd' => sprintf('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file),
             '@result' => implode("\n", $messages),
           )), 'error');
     }
@@ -236,17 +232,14 @@ function drake_js_debug($context) {
   // @todo Make this configurable through the action.
   $debug = array(
     ' console.log\(',
-
   );
-  $command = 'grep -nHE "(' . implode('|', $debug) . ')" ';
   $overall_status = 'ok';
 
   foreach ($context['files'] as $file) {
-    // exec($command.'"'.$file.'" 2>&1', $messages);
     if ($context['verbose']) {
       drush_log(dt('Checking @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec($command . '"' . $file . '"');
+    drush_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file);
     $messages = drush_shell_exec_output();
 
     $bad_files = array();
@@ -283,14 +276,11 @@ $actions['php-md'] = array(
  * Action callback; check PHP files for protential problems.
  */
 function drake_php_md($context) {
-  $command = 'phpmd 2>&1 ';
-  $suffix = ' text codesize,controversial,design,naming,unusedcode';
-
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Mess detecting @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec($command . '"' . $file . '"' . $suffix);
+    drush_shell_exec('phpmd 2>&1 "%s" text codesize,controversial,design,naming,unusedcode', $file);
     $messages = drush_shell_exec_output();
 
     // Remove empty lines.
@@ -324,13 +314,11 @@ $actions['php-cpd'] = array(
  * Action callback; check PHP files for duplicate code.
  */
 function drake_php_cpd($context) {
-  $command = 'phpcpd 2>&1 ';
-
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Copy/paste detecting @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec($command . '"' . $file . '"');
+    drush_shell_exec('phpcpd 2>&1 "%s"', $file);
     $messages = drush_shell_exec_output();
 
     // Get status from the 3rd last line of message
@@ -338,7 +326,7 @@ function drake_php_cpd($context) {
     if (count($messages) < 5 || !preg_match('/^(\d+\.\d+)\% duplicated/', $messages[count($messages) - 3], $matches)) {
       drush_log(dt('Unexpected response from phpcpd: @cmd - @result',
           array(
-            '@cmd' => $command,
+            '@cmd' => sprintf('phpcpd 2>&1 "%s"', $file),
             '@result' => implode("\n", $messages),
           )), 'error');
     }
@@ -382,23 +370,19 @@ $actions['php-cs'] = array(
  * Action callback; check PHP files for coding style.
  */
 function drake_php_cs($context) {
-  $standard = $context['standard'];
-  $encoding = $context['encoding'];
-  $command = 'phpcs --standard=' . $standard . ' --encoding=' . $encoding . ' 2>&1 ';
-
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Code sniffing @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec($command . '"' . $file . '"');
+    drush_shell_exec('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file);
     $messages = drush_shell_exec_output();
 
     // Get status from the 3rd last line of message
     // @fixme Too flaky assuming 3rd last line is duplication status?
     if (count($messages) < 2 || !preg_match('/^Time: (.*?) seconds, Memory: (.*?)/', $messages[count($messages) - 2])) {
-      drush_log(dt('Unexpected response from phpcpd: @cmd - @result',
+      drush_log(dt('Unexpected response from phpcs: @cmd - @result',
           array(
-            '@cmd' => $command,
+            '@cmd' => sprintf('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file),
             '@result' => implode("\n", $messages),
           )), 'error');
     }
