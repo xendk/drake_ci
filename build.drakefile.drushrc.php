@@ -238,7 +238,7 @@ function drake_php_lint($context) {
       }
     }
     if (count($bad_files)) {
-      drake_action_error('Syntax error in files.');
+      drake_action_error(dt('Syntax error in files.'));
       return;
     }
   }
@@ -300,7 +300,7 @@ function drake_php_debug($context) {
       drush_log($message, 'error');
     }
     if (count($bad_files)) {
-      drake_action_error('Debug statements found in files.');
+      drake_action_error(dt('Debug statements found in files.'));
       return;
     }
   }
@@ -366,7 +366,7 @@ function drake_js_lint($context) {
     }
   }
   if ($overall_status === 'error') {
-    drake_action_error('Syntax error in files.');
+    drake_action_error(dt('Syntax error in files.'));
     return;
   }
 }
@@ -416,7 +416,7 @@ function drake_js_debug($context) {
       drush_log($message, 'error');
     }
     if (count($bad_files)) {
-      drake_action_error('Debug statements found in files.');
+      drake_action_error(dt('Debug statements found in files.'));
       return;
     }
   }
