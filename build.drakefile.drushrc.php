@@ -11,23 +11,95 @@ $api = 1;
  * Filesets for the tasks.
  */
 $filesets['php'] = array(
-  'include' => array('*.module', '*.inc', '*.php'),
+  'include' => array(
+    '*.php',
+    '*.module',
+    '*.install',
+    '*.inc',
+    '*.profile',
+    '*.test',
+  ),
 );
 
-$filesets['php-custom'] = array(
-  'dir' => context('root'),
-  'extend' => 'php',
-  'exclude' => array('**/contrib/**', '**/libraries/**'),
+$filesets['php-generated'] = array(
+  'include' => array(
+    '**/*.features.*',
+    '**/*.field_group.inc',
+    '**/*.layouts.inc',
+    '**/*.pages_default.inc',
+    '**/*.panels_default.inc',
+    '**/*.strongarm.inc',
+    '**/*.views_default.inc',
+  ),
+);
+
+$filesets['contrib'] = array(
+  'include' => array(
+    '**/contrib/**',
+    '**/libraries/**',
+  ),
+);
+
+$filesets['core'] = array(
+  // These patterns are anchored at /.
+  'include' => array(
+    // Matches files in the Drupal root dir.
+    '/*',
+    '/includes/**',
+    '/misc/**',
+    '/scripts/**',
+    '/modules/**',
+    '/themes/**',
+    '/sites/*',
+    '/sites/default/**',
+    '/sites/*/settings.php',
+    '/profiles/minimal/**',
+    '/profiles/standard/**',
+    '/profiles/testing/**',
+    '/profiles/default/**',
+  ),
 );
 
 $filesets['js'] = array(
   'include' => array('*.js'),
+  // Minimized JavaScript files should not be analyzed.  In their optimized
+  // state they can not be expected to conform to coding standards.
+  'exclude' => array('*.min.js'),
+);
+
+$filesets['css'] = array(
+  'include' => array('*.css'),
+);
+
+/*
+ * Convinience filesets.
+ */
+$filesets['php-custom'] = array(
+  'dir' => context('root'),
+  'include' => array(
+    'php',
+    'no-php-generated',
+    'no-core',
+    'no-contrib',
+  ),
 );
 
 $filesets['js-custom'] = array(
   'dir' => context('root'),
-  'extend' => 'js',
-  'exclude' => array('**/contrib/**', '**/libraries/**'),
+  'include' => array(
+    'js',
+    'no-core',
+    'no-contrib',
+  ),
+);
+
+$filesets['css-custom'] = array(
+  'dir' => context('root'),
+  'include' => array(
+    'css',
+    'no-core',
+    'no-contrib',
+  ),
 );
 
 /**
