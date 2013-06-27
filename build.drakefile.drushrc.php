@@ -216,7 +216,9 @@ function drake_php_lint($context) {
     // @todo the following makes PHP report everything, including deprecated
     // code. Add as an option.
     // $command .= '-d error_reporting=32767 ';
-    drush_shell_exec('php 2>&1 -n -l "%s"', $file);
+    if (!drush_shell_exec('php 2>&1 -n -l "%s"', $file)) {
+      return drake_action_error(dt('Error running php: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    }
     $messages = drush_shell_exec_output();
 
     $bad_files = array();
@@ -284,7 +286,9 @@ function drake_php_debug($context) {
     if ($context['verbose']) {
       drush_log(dt('Checking @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file);
+    if (!drush_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
+      return drake_action_error(dt('Error running grep: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    }
     $messages = drush_shell_exec_output();
 
     $bad_files = array();
@@ -328,7 +332,10 @@ function drake_js_lint($context) {
     if ($context['verbose']) {
       drush_log(dt('Linting  @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file);
+    if (!drush_shell_exec('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file)) {
+      return drake_action_error(dt('Error running jsl: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    }
+
     $messages = drush_shell_exec_output();
     if (!preg_match('/^(\d+) error(.*?), (\d+) warning/', end($messages), $matches)) {
       drush_log(dt('Unexpected response from jsl: @cmd - @result',
@@ -394,7 +401,10 @@ function drake_js_debug($context) {
     if ($context['verbose']) {
       drush_log(dt('Checking @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file);
+    if (!drush_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
+      return drake_action_error(dt('Error running grep: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    }
+
     $messages = drush_shell_exec_output();
 
     $bad_files = array();
@@ -435,7 +445,11 @@ function drake_php_md($context) {
     if ($context['verbose']) {
       drush_log(dt('Mess detecting @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec('phpmd 2>&1 "%s" text codesize,controversial,design,naming,unusedcode', $file);
+    ;
+    if (!drush_shell_exec('phpmd 2>&1 "%s" text codesize,controversial,design,naming,unusedcode', $file)) {
+      return drake_action_error(dt('Error running phpmd: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    }
+
     $messages = drush_shell_exec_output();
 
     // Remove empty lines.
@@ -473,7 +487,9 @@ function drake_php_cpd($context) {
     if ($context['verbose']) {
       drush_log(dt('Copy/paste detecting @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec('phpcpd 2>&1 "%s"', $file);
+    if (!drush_shell_exec('phpcpd 2>&1 "%s"', $file)) {
+      return drake_action_error(dt('Error running phpcpd: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    }
     $messages = drush_shell_exec_output();
 
     // Get status from the 3rd last line of message
@@ -529,7 +545,9 @@ function drake_php_cs($context) {
     if ($context['verbose']) {
       drush_log(dt('Code sniffing @file', array('@file' => $file->path())), 'status');
     }
-    drush_shell_exec('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file);
+    if (!drush_shell_exec('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file)) {
+      return drake_action_error(dt('Error running phpcs: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    }
     $messages = drush_shell_exec_output();
 
     // Get status from the 3rd last line of message
