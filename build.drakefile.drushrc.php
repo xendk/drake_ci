@@ -216,8 +216,8 @@ function drake_php_lint($context) {
     // @todo the following makes PHP report everything, including deprecated
     // code. Add as an option.
     // $command .= '-d error_reporting=32767 ';
-    if (!drush_shell_exec('php 2>&1 -n -l "%s"', $file)) {
-      return drake_action_error(dt('Error running php: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    if (!drake_build_shell_exec('php 2>&1 -n -l "%s"', $file)) {
+      return FALSE;
     }
     $messages = drush_shell_exec_output();
 
@@ -286,8 +286,8 @@ function drake_php_debug($context) {
     if ($context['verbose']) {
       drush_log(dt('Checking @file', array('@file' => $file->path())), 'status');
     }
-    if (!drush_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
-      return drake_action_error(dt('Error running grep: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    if (!drake_build_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
+      return FALSE;
     }
     $messages = drush_shell_exec_output();
 
@@ -332,8 +332,8 @@ function drake_js_lint($context) {
     if ($context['verbose']) {
       drush_log(dt('Linting  @file', array('@file' => $file->path())), 'status');
     }
-    if (!drush_shell_exec('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file)) {
-      return drake_action_error(dt('Error running jsl: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    if (!drake_build_shell_exec('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file)) {
+      return FALSE;
     }
 
     $messages = drush_shell_exec_output();
@@ -401,8 +401,8 @@ function drake_js_debug($context) {
     if ($context['verbose']) {
       drush_log(dt('Checking @file', array('@file' => $file->path())), 'status');
     }
-    if (!drush_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
-      return drake_action_error(dt('Error running grep: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    if (!drake_build_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
+      return FALSE;
     }
 
     $messages = drush_shell_exec_output();
@@ -446,8 +446,8 @@ function drake_php_md($context) {
       drush_log(dt('Mess detecting @file', array('@file' => $file->path())), 'status');
     }
     ;
-    if (!drush_shell_exec('phpmd 2>&1 "%s" text codesize,controversial,design,naming,unusedcode', $file)) {
-      return drake_action_error(dt('Error running phpmd: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    if (!drake_build_shell_exec('phpmd 2>&1 "%s" text codesize,controversial,design,naming,unusedcode', $file)) {
+      return FALSE;
     }
 
     $messages = drush_shell_exec_output();
@@ -487,8 +487,8 @@ function drake_php_cpd($context) {
     if ($context['verbose']) {
       drush_log(dt('Copy/paste detecting @file', array('@file' => $file->path())), 'status');
     }
-    if (!drush_shell_exec('phpcpd 2>&1 "%s"', $file)) {
-      return drake_action_error(dt('Error running phpcpd: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    if (!drake_build_shell_exec('phpcpd 2>&1 "%s"', $file)) {
+      return FALSE;
     }
     $messages = drush_shell_exec_output();
 
@@ -545,8 +545,8 @@ function drake_php_cs($context) {
     if ($context['verbose']) {
       drush_log(dt('Code sniffing @file', array('@file' => $file->path())), 'status');
     }
-    if (!drush_shell_exec('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file)) {
-      return drake_action_error(dt('Error running phpcs: @message', array('@message' => implode("\n", drush_shell_exec_output()))));
+    if (!drake_build_shell_exec('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file)) {
+      return FALSE;
     }
     $messages = drush_shell_exec_output();
 
@@ -567,5 +567,63 @@ function drake_php_cs($context) {
     if (!empty($messages)) {
       drush_log(implode("\n", $messages), 'warning');
     }
+  }
+}
+
+/**
+ * Execute a command that might use a non-zero exit code.
+ *
+ * This works much like drush_shell_exec(), but only returns FALSE if the
+ * command couldn't be run. If the command returns a non-zero exit code, this
+ * will still return TRUE, unlike drush_shell_exec().
+ *
+ * The return code of the command is saved to the SHELL_RC_CODE context for
+ * inspection.
+ */
+function drake_build_shell_exec($cmd) {
+  $args = func_get_args();
+  // Do not change the command itself, just the parameters.
+  for ($x = 1; $x < sizeof($args); $x++) {
+    $args[$x] = drush_escapeshellarg($args[$x]);
+  }
+  // Important: we allow $args to take one of two forms here.  If
+  // there is only one item in the array, it is the already-escaped
+  // command string, but otherwise sprintf is used.  In the case
+  // of pre-escaped strings, sprintf will fail if any of the escaped
+  // parameters contain '%', so we must not call sprintf unless necessary.
+  if (count($args) == 1) {
+    $command = $args[0];
+  }
+  else {
+    $command = call_user_func_array('sprintf', $args);
+  }
+
+  if (drush_get_context('DRUSH_VERBOSE') || drush_get_context('DRUSH_SIMULATE')) {
+    drush_print('Executing: ' . $command, 0, STDERR);
+  }
+  if (!drush_get_context('DRUSH_SIMULATE')) {
+    exec($command . ' 2>&1', $output, $result);
+    _drush_shell_exec_output_set($output);
+
+    if (drush_get_context('DRUSH_DEBUG')) {
+      foreach ($output as $line) {
+        drush_print($line, 2);
+      }
+    }
+
+    // The sh command returns 127 when it couldn't find the command.
+    if ($result == 127) {
+      $tmp = explode(' ', $cmd);
+      return drake_action_error(dt('Error running @command: @message', array(
+            '@message' => implode("\n", drush_shell_exec_output()),
+            '@command' => trim($tmp[0]))));
+    }
+    // Save the return code in context.
+    drush_set_context('SHELL_RC_CODE', $result);
+    // Return true.
+    return TRUE;
+  }
+  else {
+    return TRUE;
   }
 }
