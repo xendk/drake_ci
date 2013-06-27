@@ -8,6 +8,13 @@
 $api = 1;
 
 /*
+ * Default context for tasks.
+ */
+$context = array(
+  'root' => context('@self:site:root'),
+);
+
+/*
  * Filesets for the tasks.
  */
 $filesets['php'] = array(
@@ -73,10 +80,13 @@ $filesets['css'] = array(
 
 /*
  * Convinience filesets.
+ *
+ * Default commands use these, but they can be extended or redifined as the user
+ * sees fit.
  */
 $filesets['php-custom'] = array(
   'dir' => context('root'),
-  'include' => array(
+  'extend' => array(
     'php',
     'no-php-generated',
     'no-core',
@@ -86,7 +96,7 @@ $filesets['php-custom'] = array(
 
 $filesets['js-custom'] = array(
   'dir' => context('root'),
-  'include' => array(
+  'extend' => array(
     'js',
     'no-core',
     'no-contrib',
@@ -95,11 +105,84 @@ $filesets['js-custom'] = array(
 
 $filesets['css-custom'] = array(
   'dir' => context('root'),
-  'include' => array(
+  'extend' => array(
     'css',
     'no-core',
     'no-contrib',
   ),
+);
+
+
+/*
+ * Convinience tasks.
+ *
+ * Default implementation of all actions so that site drakefiles doesn't have to
+ * implement them. They can of course be overwritten.
+ */
+$tasks['check-all'] = array(
+  'depends' => array(
+    'check-php',
+    'check-js',
+  ),
+);
+
+$tasks['check-php'] = array(
+  'depends' => array(
+    'php-lint',
+    'php-cs',
+    'php-debug',
+    'php-md',
+    'php-cpd',
+  ),
+);
+
+$tasks['check-js'] = array(
+  'depends' => array(
+    'js-lint',
+    'js-debug',
+  ),
+);
+
+$tasks['php-lint'] = array(
+  'action' => 'php-lint',
+  'files' => fileset('php-custom'),
+  'verbose' => context_optional('verbose'),
+);
+
+$tasks['php-debug'] = array(
+  'action' => 'php-debug',
+  'files' => fileset('php-custom'),
+  'verbose' => context_optional('verbose'),
+);
+
+$tasks['php-md'] = array(
+  'action' => 'php-md',
+  'files' => fileset('php-custom'),
+  'verbose' => context_optional('verbose'),
+);
+
+$tasks['php-cpd'] = array(
+  'action' => 'php-cpd',
+  'files' => fileset('php-custom'),
+  'verbose' => context_optional('verbose'),
+);
+
+$tasks['php-cs'] = array(
+  'action' => 'php-cs',
+  'files' => fileset('php-custom'),
+  'verbose' => context_optional('verbose'),
+);
+
+$tasks['js-lint'] = array(
+  'action' => 'js-lint',
+  'files' => fileset('js-custom'),
+  'verbose' => context_optional('verbose'),
+);
+
+$tasks['js-debug'] = array(
+  'action' => 'js-debug',
+  'files' => fileset('js-custom'),
+  'verbose' => context_optional('verbose'),
 );
 
 /**
