@@ -606,7 +606,7 @@ function drake_ci_php_cs($context) {
 
     $report_options = '';
     if (!empty($context['output-dir'])) {
-      $report_options = '--report-checkstyle=' . $context['output-dir'] . '/checkstyle-' . drake_ci_flatten_path($file->path());
+      $report_options = '--report-checkstyle=' . $context['output-dir'] . '/checkstyle-' . drake_ci_flatten_path($file->path()) . '.xml';
     }
     if (!drake_ci_shell_exec('phpcs ' . $report_options . ' --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file)) {
       return FALSE;
