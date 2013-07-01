@@ -612,9 +612,21 @@ function drake_ci_php_cs($context) {
     }
     $messages = drush_shell_exec_output();
 
-    if (drush_get_context('SHELL_RC_CODE') != 0) {
-      $warnings = TRUE;
+    switch (drush_get_context('SHELL_RC_CODE')) {
+      case 0:
+        // Success, and no warnings.
+        break;
+
+      case 1:
+        // Success, but with warnings.
+        $warnings = TRUE;
+        break;
+
+      default:
+        return drake_action_error(dt('PHPCS failed, output: @output', array('@output' => implode("\n", $messages))));
     }
+
+
     if (empty($report_options)) {
       // Get status from the 3rd last line of message
       // @fixme Too flaky assuming 3rd last line is duplication status?
