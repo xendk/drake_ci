@@ -35,6 +35,7 @@ $filesets['php-generated'] = array(
     '**/*.layouts.inc',
     '**/*.pages_default.inc',
     '**/*.panels_default.inc',
+    '**/*.panelizer.inc',
     '**/*.strongarm.inc',
     '**/*.views_default.inc',
   ),
