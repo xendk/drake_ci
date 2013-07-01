@@ -130,6 +130,11 @@ $filesets['all-custom'] = array(
  * Default implementation of all actions so that site drakefiles doesn't have to
  * implement them. They can of course be overwritten.
  */
+$tasks['ci-clean'] = array(
+  'action' => 'ci-clean',
+  'output-dir' => context_optional('output-dir'),
+);
+
 $tasks['check-all'] = array(
   'depends' => array(
     'check-php',
@@ -139,6 +144,7 @@ $tasks['check-all'] = array(
 
 $tasks['check-php'] = array(
   'depends' => array(
+    'ci-clean',
     'php-lint',
     'php-cs',
     'php-debug',
@@ -149,6 +155,7 @@ $tasks['check-php'] = array(
 
 $tasks['check-js'] = array(
   'depends' => array(
+    'ci-clean',
     'js-lint',
     'js-debug',
   ),
@@ -196,6 +203,32 @@ $tasks['js-debug'] = array(
   'files' => fileset('js-custom'),
   'verbose' => context_optional('verbose'),
 );
+
+/*
+ * Clean up output directory, if specified.
+ */
+$actions['ci-clean'] = array(
+  'default_message' => 'Setting up/cleaning output directories.',
+  'callback' => 'drake_ci_clean',
+  'parameters' => array(
+    'output-dir' => array(
+      'description' => 'Directory for results of analysis.',
+      'default' => '',
+    ),
+  ),
+);
+
+/**
+ * CI clean action. Empty the output directory, if specified.
+ */
+function drake_ci_clean() {
+  if (!empty($context['output-dir'])) {
+    if (file_exists($context['output-dir'])) {
+      drush_delete_dir($context['output-dir']);
+    }
+    mkdir($context['output-dir']);
+  }
+}
 
 /**
  * It's here things get interesting, here the actual testing actions are
