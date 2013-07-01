@@ -190,6 +190,7 @@ $tasks['php-cs'] = array(
   'files' => fileset('all-custom'),
   'verbose' => context_optional('verbose'),
   'output-dir' => context_optional('output-dir'),
+  'standard' => context_optional('phpcs-standard'),
 );
 
 $tasks['js-lint'] = array(
