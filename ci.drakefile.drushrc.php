@@ -112,6 +112,17 @@ $filesets['css-custom'] = array(
   ),
 );
 
+$filesets['all-custom'] = array(
+  'dir' => context('root'),
+  'extend' => array(
+    'php',
+    'no-php-generated',
+    'css',
+    'js',
+    'no-core',
+    'no-contrib',
+  ),
+);
 
 /*
  * Convinience tasks.
@@ -169,7 +180,7 @@ $tasks['php-cpd'] = array(
 
 $tasks['php-cs'] = array(
   'action' => 'php-cs',
-  'files' => fileset('php-custom'),
+  'files' => fileset('all-custom'),
   'verbose' => context_optional('verbose'),
 );
 
