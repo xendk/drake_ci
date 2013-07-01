@@ -149,7 +149,7 @@ $tasks['check-php'] = array(
     'php-lint',
     'php-debug',
     'php-cs',
-    // 'php-md',
+    'php-md',
     // 'php-cpd',
   ),
 );
@@ -180,10 +180,19 @@ $tasks['php-debug'] = array(
   'verbose' => context_optional('verbose'),
 );
 
+/*
+ * Checks for various warning signs in PHP code using PHP-MD.
+ *
+ * Install phpmd:
+ *   $ pear channel-discover pear.phpmd.org
+ *   $ pear channel-discover pear.pdepend.org
+ *   $ pear install --alldeps phpmd/PHP_PMD
+*/
 $tasks['php-md'] = array(
   'action' => 'php-md',
   'files' => fileset('php-custom'),
   'verbose' => context_optional('verbose'),
+  'output-dir' => context_optional('output-dir'),
 );
 
 $tasks['php-cpd'] = array(
@@ -505,6 +514,10 @@ $actions['php-md'] = array(
       'description' => 'Print all files processed.',
       'default' => FALSE,
     ),
+    'output-dir' => array(
+      'description' => 'Output XML files here.',
+      'default' => '',
+    ),
   ),
 );
 
@@ -512,16 +525,38 @@ $actions['php-md'] = array(
  * Action callback; check PHP files for protential problems.
  */
 function drake_ci_php_md($context) {
+  $warnings = FALSE;
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Mess detecting @file', array('@file' => $file->path())), 'status');
     }
+    if (!empty($context['output-dir'])) {
+      $report_options = 'xml --reportfile ' . $context['output-dir'] . '/pmd-' . drake_ci_flatten_path($file->path()) . '.xml';
+    }
+    else {
+      $report_options = 'text';
+    }
 
-    if (!drake_ci_shell_exec('phpmd 2>&1 "%s" text codesize,controversial,design,naming,unusedcode', $file)) {
-      return FALSE;
+    if (!drake_ci_shell_exec('phpmd 2>&1 "%s" ' . $report_options . ' codesize,design,naming', $file)) {
+      return;
     }
 
     $messages = drush_shell_exec_output();
+
+    switch (drush_get_context('SHELL_RC_CODE')) {
+      case 0:
+        // No error.
+        break;
+
+      case 2:
+        // Warning.
+        $warnings = TRUE;
+        break;
+
+      default:
+        // Error.
+        return drake_action_error(dt('Error running phpmd: @message', array('@message' => implode("\n", $messages))));
+    }
 
     // Remove empty lines.
     $messages = array_filter($messages);
@@ -532,6 +567,13 @@ function drake_ci_php_md($context) {
       }
     }
   }
+  if ($warnings) {
+    drush_log(dt('PHPMD found issues.'), 'warning');
+  }
+  else {
+    drush_log(dt('PHPMD found no issues.'), 'ok');
+  }
+
 }
 
 /**
