@@ -221,12 +221,19 @@ $actions['ci-clean'] = array(
 /**
  * CI clean action. Empty the output directory, if specified.
  */
-function drake_ci_clean() {
+function drake_ci_clean($context) {
   if (!empty($context['output-dir'])) {
+    if (!file_exists(dirname($context['output-dir']))) {
+      return drake_action_error(dt('Parent dir to output-dir does not exist.'));
+
+    }
     if (file_exists($context['output-dir'])) {
       drush_delete_dir($context['output-dir']);
     }
     mkdir($context['output-dir']);
+    if (!is_writable($context['output-dir'])) {
+      return drake_action_error(dt('Error setting up output-dir.'));
+    }
   }
 }
 
