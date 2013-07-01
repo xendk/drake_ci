@@ -546,6 +546,10 @@ $actions['php-cs'] = array(
       'description' => 'The encoding of the files to check.',
       'default' => 'UTF8',
     ),
+    'output-dir' => array(
+      'description' => 'Output XML files here.',
+      'default' => '',
+    ),
   ),
 );
 
