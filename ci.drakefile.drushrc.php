@@ -195,7 +195,7 @@ $tasks['js-debug'] = array(
  */
 $actions['php-lint'] = array(
   'default_message' => 'PHP linting files',
-  'callback' => 'drake_php_lint',
+  'callback' => 'drake_ci_php_lint',
   'parameters' => array(
     'files' => 'Files to lint.',
     'verbose' => array(
@@ -208,7 +208,7 @@ $actions['php-lint'] = array(
 /**
  * Action callback; lint PHP files.
  */
-function drake_php_lint($context) {
+function drake_ci_php_lint($context) {
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Linting  @file', array('@file' => $file->path())), 'status');
@@ -216,7 +216,7 @@ function drake_php_lint($context) {
     // @todo the following makes PHP report everything, including deprecated
     // code. Add as an option.
     // $command .= '-d error_reporting=32767 ';
-    if (!drake_build_shell_exec('php 2>&1 -n -l "%s"', $file)) {
+    if (!drake_ci_shell_exec('php 2>&1 -n -l "%s"', $file)) {
       return FALSE;
     }
     $messages = drush_shell_exec_output();
@@ -250,7 +250,7 @@ function drake_php_lint($context) {
  */
 $actions['php-debug'] = array(
   'default_message' => 'Checking PHP files for debug statements',
-  'callback' => 'drake_php_debug',
+  'callback' => 'drake_ci_php_debug',
   'parameters' => array(
     'files' => 'Files to check for debug statements.',
     'verbose' => array(
@@ -263,7 +263,7 @@ $actions['php-debug'] = array(
 /**
  * Action callback; check files for debugging statements.
  */
-function drake_php_debug($context) {
+function drake_ci_php_debug($context) {
   // @todo Make this configurable through the action.
   $debug = array(
     ' dsm\(',
@@ -286,7 +286,7 @@ function drake_php_debug($context) {
     if ($context['verbose']) {
       drush_log(dt('Checking @file', array('@file' => $file->path())), 'status');
     }
-    if (!drake_build_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
+    if (!drake_ci_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
       return FALSE;
     }
     $messages = drush_shell_exec_output();
@@ -312,7 +312,7 @@ function drake_php_debug($context) {
  */
 $actions['js-lint'] = array(
   'default_message' => 'PHP linting files',
-  'callback' => 'drake_js_lint',
+  'callback' => 'drake_ci_js_lint',
   'parameters' => array(
     'files' => 'Files to lint.',
     'verbose' => array(
@@ -325,14 +325,14 @@ $actions['js-lint'] = array(
 /**
  * Action callback; Check JS files for syntax errors.
  */
-function drake_js_lint($context) {
+function drake_ci_js_lint($context) {
   $overall_status = 'ok';
 
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Linting  @file', array('@file' => $file->path())), 'status');
     }
-    if (!drake_build_shell_exec('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file)) {
+    if (!drake_ci_shell_exec('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file)) {
       return FALSE;
     }
 
@@ -377,7 +377,7 @@ function drake_js_lint($context) {
  */
 $actions['js-debug'] = array(
   'default_message' => 'Checking JS files for debug statements',
-  'callback' => 'drake_js_debug',
+  'callback' => 'drake_ci_js_debug',
   'parameters' => array(
     'files' => 'Files to check for debug statements.',
     'verbose' => array(
@@ -390,7 +390,7 @@ $actions['js-debug'] = array(
 /**
  * Action callback; check JS files for common debug statements.
  */
-function drake_js_debug($context) {
+function drake_ci_js_debug($context) {
   // @todo Make this configurable through the action.
   $debug = array(
     ' console.log\(',
@@ -401,7 +401,7 @@ function drake_js_debug($context) {
     if ($context['verbose']) {
       drush_log(dt('Checking @file', array('@file' => $file->path())), 'status');
     }
-    if (!drake_build_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
+    if (!drake_ci_shell_exec('grep -nHE "(%s)" "%s"', implode('|', $debug), $file)) {
       return FALSE;
     }
 
@@ -427,7 +427,7 @@ function drake_js_debug($context) {
  */
 $actions['php-md'] = array(
   'default_message' => 'PHP mess detection',
-  'callback' => 'drake_php_md',
+  'callback' => 'drake_ci_php_md',
   'parameters' => array(
     'files' => 'Files to check.',
     'verbose' => array(
@@ -440,13 +440,13 @@ $actions['php-md'] = array(
 /**
  * Action callback; check PHP files for protential problems.
  */
-function drake_php_md($context) {
+function drake_ci_php_md($context) {
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Mess detecting @file', array('@file' => $file->path())), 'status');
     }
-    ;
-    if (!drake_build_shell_exec('phpmd 2>&1 "%s" text codesize,controversial,design,naming,unusedcode', $file)) {
+
+    if (!drake_ci_shell_exec('phpmd 2>&1 "%s" text codesize,controversial,design,naming,unusedcode', $file)) {
       return FALSE;
     }
 
@@ -468,7 +468,7 @@ function drake_php_md($context) {
  */
 $actions['php-cpd'] = array(
   'default_message' => 'PHP copy/paste detection',
-  'callback' => 'drake_php_cpd',
+  'callback' => 'drake_ci_php_cpd',
   'parameters' => array(
     'files' => 'Files to check.',
     'verbose' => array(
@@ -482,12 +482,12 @@ $actions['php-cpd'] = array(
 /**
  * Action callback; check PHP files for duplicate code.
  */
-function drake_php_cpd($context) {
+function drake_ci_php_cpd($context) {
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Copy/paste detecting @file', array('@file' => $file->path())), 'status');
     }
-    if (!drake_build_shell_exec('phpcpd 2>&1 "%s"', $file)) {
+    if (!drake_ci_shell_exec('phpcpd 2>&1 "%s"', $file)) {
       return FALSE;
     }
     $messages = drush_shell_exec_output();
@@ -519,7 +519,7 @@ function drake_php_cpd($context) {
  */
 $actions['php-cs'] = array(
   'default_message' => 'PHP code sniffer',
-  'callback' => 'drake_php_cs',
+  'callback' => 'drake_ci_php_cs',
   'parameters' => array(
     'files' => 'Files to check.',
     'verbose' => array(
@@ -540,12 +540,12 @@ $actions['php-cs'] = array(
 /**
  * Action callback; check PHP files for coding style.
  */
-function drake_php_cs($context) {
+function drake_ci_php_cs($context) {
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Code sniffing @file', array('@file' => $file->path())), 'status');
     }
-    if (!drake_build_shell_exec('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file)) {
+    if (!drake_ci_shell_exec('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file)) {
       return FALSE;
     }
     $messages = drush_shell_exec_output();
@@ -580,7 +580,7 @@ function drake_php_cs($context) {
  * The return code of the command is saved to the SHELL_RC_CODE context for
  * inspection.
  */
-function drake_build_shell_exec($cmd) {
+function drake_ci_shell_exec($cmd) {
   $args = func_get_args();
   // Do not change the command itself, just the parameters.
   for ($x = 1; $x < sizeof($args); $x++) {
