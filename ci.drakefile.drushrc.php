@@ -162,12 +162,18 @@ $tasks['check-js'] = array(
   ),
 );
 
+/*
+ * Check PHP syntax. Only requies the php cli command.
+ */
 $tasks['php-lint'] = array(
   'action' => 'php-lint',
   'files' => fileset('php-custom'),
   'verbose' => context_optional('verbose'),
 );
 
+/*
+ * Uses grep to check for certain debugging statements.
+ */
 $tasks['php-debug'] = array(
   'action' => 'php-debug',
   'files' => fileset('php-custom'),
@@ -186,6 +192,17 @@ $tasks['php-cpd'] = array(
   'verbose' => context_optional('verbose'),
 );
 
+/*
+ * Check coding standard using phpcs.
+ *
+ * Install phpcs:
+ *   $ sudo pear install PHP_CodeSniffer
+ * Install coder into Drush:
+ *   $ cd ~/.drush && drush dl coder
+ * Install Drupal Coding standard in PHPCS:
+ *   $ sudo ln -sv ~/.drush/coder/coder_sniffer/Drupal $(pear config-get php_dir)/PHP/CodeSniffer/Standards/Drupal
+ * (see https://drupal.org/node/1419988 for details.)
+ */
 $tasks['php-cs'] = array(
   'action' => 'php-cs',
   'files' => fileset('all-custom'),
