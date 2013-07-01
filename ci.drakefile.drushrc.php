@@ -182,6 +182,7 @@ $tasks['php-cs'] = array(
   'action' => 'php-cs',
   'files' => fileset('all-custom'),
   'verbose' => context_optional('verbose'),
+  'output-dir' => context_optional('output-dir'),
 );
 
 $tasks['js-lint'] = array(
@@ -552,32 +553,49 @@ $actions['php-cs'] = array(
  * Action callback; check PHP files for coding style.
  */
 function drake_ci_php_cs($context) {
+  $warnings = FALSE;
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
       drush_log(dt('Code sniffing @file', array('@file' => $file->path())), 'status');
     }
-    if (!drake_ci_shell_exec('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file)) {
+
+    $report_options = '';
+    if (!empty($context['output-dir'])) {
+      $report_options = '--report-checkstyle=' . $context['output-dir'] . '/' . drake_ci_flatten_path($file->path());
+    }
+    if (!drake_ci_shell_exec('phpcs ' . $report_options . ' --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file)) {
       return FALSE;
     }
     $messages = drush_shell_exec_output();
 
-    // Get status from the 3rd last line of message
-    // @fixme Too flaky assuming 3rd last line is duplication status?
-    if (count($messages) < 2 || !preg_match('/^Time: (.*?) seconds, Memory: (.*?)/', $messages[count($messages) - 2])) {
-      drush_log(dt('Unexpected response from phpcs: @cmd - @result',
-          array(
-            '@cmd' => sprintf('phpcs --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file),
-            '@result' => implode("\n", $messages),
-          )), 'error');
+    if (drush_get_context('SHELL_RC_CODE') != 0) {
+      $warnings = TRUE;
     }
+    if (empty($report_options)) {
+      // Get status from the 3rd last line of message
+      // @fixme Too flaky assuming 3rd last line is duplication status?
+      if (count($messages) < 2 || !preg_match('/^Time: (.*?) seconds, Memory: (.*?)/', $messages[count($messages) - 2])) {
+        drush_log(dt('Unexpected response from phpcs: @cmd - @result',
+            array(
+              '@cmd' => sprintf('phpcs ' . $report_options . ' --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file),
+              '@result' => implode("\n", $messages),
+            )), 'error');
+      }
 
-    // The last two lines are irrelevant.
-    $messages = array_slice($messages, 0, -2);
+      // The last two lines are irrelevant.
+      $messages = array_slice($messages, 0, -2);
 
-    // Any messages left?
-    if (!empty($messages)) {
-      drush_log(implode("\n", $messages), 'warning');
+      // Any messages left?
+      if (!empty($messages)) {
+        drush_log(implode("\n", $messages), 'warning');
+      }
     }
+  }
+  if ($warnings) {
+    drush_log(dt('PHPCS found issues.'), 'warning');
+  }
+  else {
+    drush_log(dt('PHPCS found no issues.'), 'ok');
   }
 }
 
@@ -637,4 +655,13 @@ function drake_ci_shell_exec($cmd) {
   else {
     return TRUE;
   }
+}
+
+/**
+ * Flatten a path to a file name.
+ *
+ * Flattens path/to/file-name.php to path-to-file--name.php
+ */
+function drake_ci_flatten_path($path) {
+  return strtr($path, array('-' => '--', '/' => '-'));
 }
