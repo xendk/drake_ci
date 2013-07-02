@@ -205,7 +205,6 @@ $tasks['php-md'] = array(
 $tasks['php-cpd'] = array(
   'action' => 'php-cpd',
   'files' => fileset('php-custom'),
-  'verbose' => context_optional('verbose'),
   'output-dir' => context_optional('output-dir'),
 );
 
@@ -591,10 +590,6 @@ $actions['php-cpd'] = array(
   'callback' => 'drake_ci_php_cpd',
   'parameters' => array(
     'files' => 'Files to check.',
-    'verbose' => array(
-      'description' => 'Print all files processed.',
-      'default' => FALSE,
-    ),
     'output-dir' => array(
       'description' => 'Output XML files here.',
       'default' => '',
@@ -610,10 +605,6 @@ function drake_ci_php_cpd($context) {
   $filenames = array();
   foreach ($context['files'] as $file) {
     $filenames[] = drush_escapeshellarg($file->fullPath());
-  }
-
-  if ($context['verbose']) {
-    drush_log(dt('Copy/paste detecting files.'), 'status');
   }
 
   if (!empty($context['output-dir'])) {
@@ -656,7 +647,6 @@ function drake_ci_php_cpd($context) {
   else {
     drush_log(dt('PHPCPD found no issues.'), 'ok');
   }
-
 }
 
 /**
