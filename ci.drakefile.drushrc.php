@@ -581,7 +581,6 @@ function drake_ci_php_md($context) {
   else {
     drush_log(dt('PHPMD found no issues.'), 'ok');
   }
-
 }
 
 /**
