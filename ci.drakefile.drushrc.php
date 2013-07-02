@@ -139,7 +139,7 @@ $tasks['ci-clean'] = array(
 $tasks['check-all'] = array(
   'depends' => array(
     'check-php',
-    // 'check-js',
+    'check-js',
   ),
 );
 
