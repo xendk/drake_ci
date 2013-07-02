@@ -619,7 +619,6 @@ function drake_ci_php_cpd($context) {
   if (!$report_options) {
     // Get status from the 3rd last line of message
     // @fixme Too flaky assuming 3rd last line is duplication status?
-    drush_print_r($messages);
     if (count($messages) < 5 || !preg_match('/^(\d+\.\d+)\% duplicated/', $messages[count($messages) - 3], $matches)) {
       drush_log(dt('Unexpected response from phpcpd: @cmd - @result',
           array(
