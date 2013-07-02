@@ -158,7 +158,7 @@ $tasks['check-php'] = array(
 $tasks['check-js'] = array(
   'depends' => array(
     'ci-clean',
-    'js-lint',
+    'js-hint',
     'js-debug',
   ),
 );
@@ -242,10 +242,17 @@ $tasks['php-loc'] = array(
   'output-dir' => context_optional('output-dir'),
 );
 
-$tasks['js-lint'] = array(
-  'action' => 'js-lint',
+/*
+ * Check JavaScript files using js-hint.
+ *
+ * Install jshint:
+ *   $ sudo npm install -g jshint
+ */
+$tasks['js-hint'] = array(
+  'action' => 'js-hint',
   'files' => fileset('js-custom'),
   'verbose' => context_optional('verbose'),
+  'output-dir' => context_optional('output-dir'),
 );
 
 $tasks['js-debug'] = array(
@@ -409,17 +416,21 @@ function drake_ci_php_debug($context) {
 }
 
 /**
- * JS lint action. Runs the files through JavaScriptLint to check for syntax
+ * JSHint action. Runs the files through jshint to check for syntax and style
  * errors.
  */
-$actions['js-lint'] = array(
-  'default_message' => 'PHP linting files',
-  'callback' => 'drake_ci_js_lint',
+$actions['js-hint'] = array(
+  'default_message' => 'JSHinting files',
+  'callback' => 'drake_ci_js_hint',
   'parameters' => array(
     'files' => 'Files to lint.',
     'verbose' => array(
       'description' => 'Print all files processed.',
       'default' => FALSE,
+    ),
+    'output-dir' => array(
+      'description' => 'Output XML files here.',
+      'default' => '',
     ),
   ),
 );
@@ -427,49 +438,45 @@ $actions['js-lint'] = array(
 /**
  * Action callback; Check JS files for syntax errors.
  */
-function drake_ci_js_lint($context) {
-  $overall_status = 'ok';
-
+function drake_ci_js_hint($context) {
+  $warnings = FALSE;
   foreach ($context['files'] as $file) {
     if ($context['verbose']) {
-      drush_log(dt('Linting  @file', array('@file' => $file->path())), 'status');
+      drush_log(dt('JSHinting  @file', array('@file' => $file->path())), 'status');
     }
-    if (!drake_ci_shell_exec('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file)) {
+    if (!empty($context['output-dir'])) {
+      $report_options = '--reporter checkstyle >' . $context['output-dir'] . '/checkstyle-jshint-' . drake_ci_flatten_path($file->path()) . '.xml';
+    }
+    else {
+      $report_options = '--show-non-errors';
+    }
+
+    if (!drake_ci_shell_exec('jshint 2>&1 ' . $report_options . ' "%s"', $file)) {
       return FALSE;
     }
 
-    $messages = drush_shell_exec_output();
-    if (!preg_match('/^(\d+) error(.*?), (\d+) warning/', end($messages), $matches)) {
-      drush_log(dt('Unexpected response from jsl: @cmd - @result',
-          array(
-            '@cmd' => sprintf('jsl 2>&1 -nologo -nofilelisting -process "%s"', $file),
-            '@result' => implode("\n", $messages),
-          )), 'error');
-    }
+    if (empty($context['output-dir'])) {
+      $messages = drush_shell_exec_output();
+      drush_log(implode("\n", $messages), $status);
 
-    array_pop($messages);
-    $messages = array_filter($messages);
+      switch (drush_get_error('SHELL_RC_CODE')) {
+        case 0:
+          drush_log(implode("\n", $messages), 'ok');
+          break;
 
-    $status = $matches[1] > 0 ? 'error' : ($matches[3] > 0 ? 'warning' : 'ok');
-    switch ($status) {
-      case 'error':
-        $overall_status = $status;
-        drush_log(implode("\n", $messages), $status);
-        break 2;
+        case 2:
+          $warnings = TRUE;
+          drush_log(implode("\n", $messages), 'warning');
+          break;
 
-      case 'warning':
-        $overall_status = $overall_status === 'error' ? $overall_status : $status;
-        drush_log(implode("\n", $messages), $status);
-        break;
-
-      case 'ok':
-      default:
-        break;
+        default:
+          return drake_action_error(dt('Error running jshint, message: @message', array('@message' => implode("\n", $messages))));
+          break;
+      }
     }
   }
-  if ($overall_status === 'error') {
-    drake_action_error(dt('Syntax error in files.'));
-    return;
+  if ($warnings) {
+    drake_action_error(dt('Errors found in JS files.'));
   }
 }
 
