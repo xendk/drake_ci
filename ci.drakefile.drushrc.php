@@ -622,6 +622,7 @@ function drake_ci_php_cpd($context) {
     $filenames[] = drush_escapeshellarg($file->fullPath());
   }
 
+  $report_options = '';
   if (!empty($context['output-dir'])) {
     $report_options = '--log-pmd ' . $context['output-dir'] . '/cpd.xml';
   }
@@ -702,7 +703,7 @@ function drake_ci_php_cs($context) {
 
     $report_options = '';
     if (!empty($context['output-dir'])) {
-      $report_options = '--report-checkstyle=' . $context['output-dir'] . '/checkstyle-' . drake_ci_flatten_path($file->path()) . '.xml';
+      $report_options = '--report-checkstyle=' . $context['output-dir'] . '/checkstyle-phpcs-' . drake_ci_flatten_path($file->path()) . '.xml';
     }
     if (!drake_ci_shell_exec('phpcs ' . $report_options . ' --standard=%s --encoding=%s 2>&1 "%s"', $context['standard'], $context['encoding'], $file)) {
       return FALSE;
@@ -777,6 +778,7 @@ function drake_ci_php_loc($context) {
     $filenames[] = drush_escapeshellarg($file->fullPath());
   }
 
+  $report_options = '';
   if (!empty($context['output-dir'])) {
     $report_options = '--log-csv ' . $context['output-dir'] . '/phploc.csv';
   }
@@ -806,7 +808,7 @@ function drake_ci_php_loc($context) {
 function drake_ci_shell_exec($cmd) {
   $args = func_get_args();
   // Do not change the command itself, just the parameters.
-  for ($x = 1; $x < sizeof($args); $x++) {
+  for ($x = 1; $x < count($args); $x++) {
     $args[$x] = drush_escapeshellarg($args[$x]);
   }
   // Important: we allow $args to take one of two forms here.  If
