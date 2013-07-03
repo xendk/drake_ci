@@ -199,7 +199,7 @@ $tasks['php-md'] = array(
 /*
  * Detects duplicate PHP code.
  *
- * Install:
+ * Install phpcpd:
  *   $ sudo pear channel-discover pear.phpunit.de
  *   $ sudo pear channel-discover pear.netpirates.net
  *   $ sudo pear install --alldeps phpunit/phpcpd
@@ -255,6 +255,10 @@ $tasks['js-hint'] = array(
   'output-dir' => context_optional('output-dir'),
 );
 
+
+/*
+ * Check JS files for debug statements, using grep.
+ */
 $tasks['js-debug'] = array(
   'action' => 'js-debug',
   'files' => fileset('js-custom'),
