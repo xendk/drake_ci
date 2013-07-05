@@ -1015,20 +1015,24 @@ function drake_ci_run_simpletests($context) {
     // Find tests to run by greping all selected files for class names, and
     // taking all that's also listed in the drush test-run listing.
     foreach ($context['files'] as $file) {
-      drush_shell_exec('grep "class " %s', $file->fullPath());
-      // Grep returns all lines that contains "class ", filter it down a bit and
-      // get the class names.
-      if (preg_match_all('/^\s*(?:abstract|final)?\s*class\s+(\S+)[^{]*{/m', implode("\n", drush_shell_exec_output()), $matches, PREG_PATTERN_ORDER)) {
-        foreach ($matches[1] as $name) {
-          // Figure out if we need a specific profile for the tests.
-          if (preg_match('{^profiles/([^/]+)/}', $file->path(), $m)) {
-            if (!empty($profile) and $profile != $m[1]) {
-              return drake_action_error('Cannot test files from different profiles.');
+      // Only bother with test files.
+      // @todo will need to be adjusted for D8.
+      if (preg_match('/.test$/', $file->path())) {
+        drush_shell_exec('grep "class " %s', $file->fullPath());
+        // Grep returns all lines that contains "class ", filter it down a bit and
+        // get the class names.
+        if (preg_match_all('/^\s*(?:abstract|final)?\s*class\s+(\S+)[^{]*{/m', implode("\n", drush_shell_exec_output()), $matches, PREG_PATTERN_ORDER)) {
+          foreach ($matches[1] as $name) {
+            // Figure out if we need a specific profile for the tests.
+            if (preg_match('{^profiles/([^/]+)/}', $file->path(), $m)) {
+              if (!empty($profile) and $profile != $m[1]) {
+                return drake_action_error('Cannot test files from different profiles.');
+              }
+              $profile = $m[1];
             }
-            $profile = $m[1];
+            // Create a lookup table.
+            $potential_tests[$name] = TRUE;
           }
-          // Create a lookup table.
-          $potential_tests[$name] = TRUE;
         }
       }
     }
