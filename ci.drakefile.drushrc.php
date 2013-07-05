@@ -996,6 +996,9 @@ function drake_ci_run_simpletests($context) {
   $site_dir = $port . '.localhost';
   $profile = NULL;
   $tests = $context['tests'];
+  if (!is_array($tests)) {
+    $tests = explode(",", $tests);
+  }
   $default_options = array(
     'uri' => 'http://localhost:' . $port,
   );
