@@ -140,6 +140,7 @@ $tasks['check-all'] = array(
   'depends' => array(
     'check-php',
     'check-js',
+    'check-css',
     'run-tests',
   ),
 );
