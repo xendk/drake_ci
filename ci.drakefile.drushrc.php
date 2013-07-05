@@ -1032,6 +1032,12 @@ function drake_ci_run_simpletests($context) {
         }
       }
     }
+
+    if (empty($potential_tests)) {
+      // No tests specified and none found. Return.
+      drush_log(dt('No tests found in files, skipping.'), 'status');
+      return;
+    }
   }
 
   // Use the minimal profile if no specific profile is required.
@@ -1107,6 +1113,11 @@ function drake_ci_run_simpletests($context) {
         $tests[] = $class_name;
       }
     }
+  }
+
+  if (empty($tests)) {
+    // No tests to run, exit.
+    drush_log(dt('No runnable tests found, skipping.'), 'status');
   }
 
   $test_errors = FALSE;
