@@ -304,6 +304,7 @@ $tasks['run-simpletests'] = array(
   'port' => context_optional('port'),
   'no-cleanup' => context_optional('no-cleanup'),
   'tests' => context_optional('tests'),
+  'abort-on-failure' => context_optional('abort-on-failure'),
 );
 
 /*
@@ -976,6 +977,10 @@ $actions['run-simpletests'] = array(
       'description' => 'Specific tests to run. If not specified, tests found in files will be run.',
       'default' => array(),
     ),
+    'abort-on-failure' => array(
+      'description' => 'Whether to abort on first failure.',
+      'default' => FALSE,
+    ),
   ),
 );
 
@@ -1119,6 +1124,10 @@ function drake_ci_run_simpletests($context) {
     $res = drush_invoke_process(NULL, 'test-run', array($test), $options, TRUE);
 
     if (!$res || $res['error_status'] != 0) {
+      $test_errors = TRUE;
+      if ($context['abort-on-failure']) {
+        return drake_action_error(dt('Error while running test @test, aborting', array('@test' => $test)));
+      }
       drush_log(dt('Error while running test @test', array('@test' => $test)), 'error');
     }
   }
