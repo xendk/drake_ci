@@ -1110,7 +1110,12 @@ function drake_ci_run_simpletests($context) {
     // Run the tests.
     $options = $default_options;
     if (!empty($context['output-dir'])) {
-      $options += array('xml' => $context['output-dir']);
+      $dir = $context['output-dir'] . '/xUnit';
+      $options += array('xml' => $dir);
+      // Clean task should ensure that the output-dir exists.
+      if (!file_exists($dir)) {
+        mkdir($dir);
+      }
     }
     foreach ($tests as $test) {
       $res = drush_invoke_process(NULL, 'test-run', array($test), $options, TRUE);
