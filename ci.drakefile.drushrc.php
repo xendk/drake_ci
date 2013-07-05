@@ -1084,7 +1084,6 @@ function drake_ci_run_simpletests($context) {
   // Register a shutdown function to properly close the subprocess.
   register_shutdown_function('_drake_ci_run_simpletests_shutdown', $process);
 
-  $test_error = FALSE;
   // Figure out which of the potential test names is available as tests that can
   // be run.
   if (count($potential_tests)) {
@@ -1092,8 +1091,7 @@ function drake_ci_run_simpletests($context) {
     $res = drush_invoke_process(NULL, 'test-run', array(), $default_options + array('pipe' => TRUE), TRUE);
 
     if (!$res || $res['error_status'] != 0) {
-      $test_error = dt('Error getting list af all tests.');
-      break;
+      return drake_action_error(dt('Error getting list af all tests.'));
     }
     // You'd think that using --pipe would be da shizzle, but it's just an
     // array represenation of the table printed, including headers, group
@@ -1106,29 +1104,28 @@ function drake_ci_run_simpletests($context) {
     }
   }
 
-  if (!$test_error) {
-    // Run the tests.
-    $options = $default_options;
-    if (!empty($context['output-dir'])) {
-      $dir = $context['output-dir'] . '/xUnit';
-      $options += array('xml' => $dir);
-      // Clean task should ensure that the output-dir exists.
-      if (!file_exists($dir)) {
-        mkdir($dir);
-      }
+  $test_errors = FALSE;
+  // Run the tests.
+  $options = $default_options;
+  if (!empty($context['output-dir'])) {
+    $dir = $context['output-dir'] . '/xUnit';
+    $options += array('xml' => $dir);
+    // Clean task should ensure that the output-dir exists.
+    if (!file_exists($dir)) {
+      mkdir($dir);
     }
-    foreach ($tests as $test) {
-      $res = drush_invoke_process(NULL, 'test-run', array($test), $options, TRUE);
+  }
+  foreach ($tests as $test) {
+    $res = drush_invoke_process(NULL, 'test-run', array($test), $options, TRUE);
 
-      if (!$res || $res['error_status'] != 0) {
-        $test_error = dt('Error running test.');
-        break;
-      }
+    if (!$res || $res['error_status'] != 0) {
+      drush_log(dt('Error while running test @test', array('@test' => $test)), 'error');
     }
   }
 
-  if ($test_error) {
-    drake_action_error($test_error);
+  if ($test_errors) {
+    // Messages was already logged.
+    return FALSE;
   }
 }
 
