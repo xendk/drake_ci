@@ -1047,9 +1047,9 @@ function drake_ci_run_simpletests($context) {
     }
   }
 
-  // Use the minimal profile if no specific profile is required.
+  // Use the testing profile if no specific profile is required.
   if (empty($profile)) {
-    $profile = 'minimal';
+    $profile = 'testing';
   }
 
   // Register dir/files for deletion when we're done.
