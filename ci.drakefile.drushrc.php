@@ -1096,7 +1096,7 @@ function drake_ci_run_simpletests($context) {
   // would cause core tests to fail on login, while this would not.
   $process = proc_open('php -S localhost:' . $port . ' ' . dirname(__FILE__) . '/router.php', $descriptorspec, $pipes);
   if (!$process) {
-    return drake_action_error(dt('Could not start internal web server..'));
+    return drake_action_error(dt('Could not start internal web server.'));
   }
 
   // Register a shutdown function to properly close the subprocess.
