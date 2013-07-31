@@ -478,6 +478,8 @@ function drake_get_zip_status_string($status) {
       return dt('Unknown status @status', array('@status' => $status));
   }
 }
+
+/**
  * CI clean action. Empty the output directory, if specified.
  */
 function drake_ci_clean($context) {
