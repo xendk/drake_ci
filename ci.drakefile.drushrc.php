@@ -318,8 +318,8 @@ $tasks['run-simpletests'] = array(
 /*
  * Package a build into a timestamped zip-file placed in the root of the site.
  */
-$tasks['package'] = array(
-  'action' => 'package',
+$tasks['package-zip'] = array(
+  'action' => 'package-zip',
   'files' => fileset('all'),
   'output-dir' => context_optional('package-output-dir', context('[@self:site:root]')),
   'basename' => context_optional('package-basename', 'package'),
@@ -329,7 +329,7 @@ $tasks['package'] = array(
 /*
  * Package a build into a zip-file.
  */
-$actions['package'] = array(
+$actions['package-zip'] = array(
   'default_message' => 'Packaging build.',
   'callback' => 'drake_ci_package',
   'parameters' => array(
