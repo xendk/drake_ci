@@ -383,7 +383,7 @@ function drake_ci_package($context) {
   // ZipArchive::CREATE == Create or overwrite.
   $res = $zip->open($output, ZipArchive::CREATE);
   if ($res !== TRUE) {
-    return drake_action_error(drake_get_zip_status_string($res));
+    return drake_action_error(drake_ci_get_zip_status_string($res));
   }
 
   // Add files to the archive.
@@ -400,7 +400,7 @@ function drake_ci_package($context) {
  *
  * Nabbed from http://www.php.net/manual/en/class.ziparchive.php#108601
  */
-function drake_get_zip_status_string($status) {
+function drake_ci_get_zip_status_string($status) {
   switch ((int) $status) {
     case ZipArchive::ER_OK:
       return 'No error';
