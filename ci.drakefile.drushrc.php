@@ -128,7 +128,7 @@ $filesets['all-custom'] = array(
 /**
  * Fileset that contains everything.
  */
-$filesets['root'] = array(
+$filesets['all'] = array(
   'dir' => context('root'),
 );
 
@@ -320,7 +320,7 @@ $tasks['run-simpletests'] = array(
  */
 $tasks['package'] = array(
   'action' => 'package',
-  'files' => fileset('root'),
+  'files' => fileset('all'),
   'output-dir' => context_optional('package-output-dir', context('[@self:site:root]')),
   'basename' => context_optional('package-basename', 'package'),
   'prefix' => context_optional('package-prefix', date('Y-m-d-His')),
