@@ -31,6 +31,7 @@ $filesets['php'] = array(
 $filesets['php-generated'] = array(
   'include' => array(
     '**/*.features.*',
+    '**/*.feeds_importer_default.inc',
     '**/*.field_group.inc',
     '**/*.layouts.inc',
     '**/*.pages_default.inc',
