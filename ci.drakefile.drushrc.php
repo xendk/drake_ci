@@ -1144,6 +1144,384 @@ $actions['run-simpletests'] = array(
 );
 
 
+/*
+ * Convinience tasks.
+ *
+ * Default implementation of all actions so that site drakefiles doesn't have to
+ * implement them. They can of course be overwritten.
+ */
+$tasks['ci-run-behat'] = array(
+  'action' => 'run-behat',
+  'root' => context('[@self:site:root]'),
+  'baseline-package' => context_optional('baseline-package'),
+  'db-su' => context('db-su'),
+  'db-su-pw' => context_optional('db-su-pw'),
+  'selenium-wd-host' => context('selenium-wd-host'),
+  // TODO: Get this from the main site?
+  'profile' => context_optional('profile', 'default'),
+  'port' => context_optional('port'),
+  'site-host' => context_optional('site-host'),
+  'output-dir' => context_optional('package-output-dir', context('[@self:site:root]/tests/behat')),
+  'behat-features' => context('behat-features'),
+  'behat-config' => context('behat-config'),
+  'behat-dir' => context('behat-dir'),
+);
+
+// See http://saucelabs.com/docs/additional-config#desired-capabilities
+$behat_capabillities = array('platform', 'browser', 'version', 'name');
+foreach ($behat_capabillities as $cap) {
+  $key = 'selenium-cap-' . $cap;
+  $tasks['ci-run-behat'][$key] = context_optional($key);
+}
+
+/**
+ * Simpletest action. Runs simpletests from the specified files.
+ */
+$actions['run-behat'] = array(
+  'default_message' => 'Behat.',
+  'callback' => 'drake_ci_behat_test',
+  'parameters' => array(
+    'output-dir' => 'Directory to output junit compatible output to',
+    // TODO: Could this be optional?
+    'behat-features' => 'Behat features to execute',
+    'behat-config' => 'Behat configuration file, relative to behat-dir',
+    'behat-dir' => 'Behat directory relative to the drupal root.',
+    'db-su' => 'Database Super-user allowed to create databases',
+    'db-su-pwd' => array(
+      'description' => 'Password for the database Superuser',
+      'default' => NULL,
+    ),
+    'selenium-wd-host' => 'Webdriver host, eg "username:xxxxxxxxx-xxxxx-xxxx-xxxx-xxxxxxxxxx@ondemand.saucelabs.com/wd/hub"',
+    // TODO: action for generating a package.
+    'baseline-package' => array(
+      'description' => 'Baseline package - an aegir backup',
+      'default' => NULL,
+    ),
+    'capabilities' => array(
+      'description' => 'Remote Webdriver desired capabilities, see http://saucelabs.com/docs/additional-config#desired-capabilities',
+      'default' => NULL,
+    ),
+    'port' => array(
+      'description' => 'Port to use for the temporary site, default is to pick a random port',
+      'default' => NULL,
+    ),
+    'profile' => array(
+      'description' => 'Profile to use if the site is to be installed, also used for naming the temporary database.',
+      'default' => NULL,
+    ),
+    'no-cleanup' => array(
+      'description' => 'Whether to delete all traces of the site after execution',
+      'default' => FALSE,
+    ),
+    'site-host' => array(
+      'description' => 'Hostname of the site, should be accessible to saucelabs',
+      'default' => 'localhost',
+    ),
+    'max-executiontime' => array(
+      'description' => 'Maximum number of seconds we should wait for Behat to execute',
+      'default' => 60 * 60,
+    ),
+    // TODO: Allow modules to be enabled/disabled prior to execution.
+  ),
+);
+foreach ($behat_capabillities as $cap) {
+  $key = 'selenium-cap-' . $cap;
+  $actions['run-behat']['parameters'][$key] = array (
+    'description' => 'Selenium descired capabillity "' . $cap . '"',
+    'default' => NULL,
+  );
+}
+
+/**
+ * Boot up a site based on a baseline package and test it via saucelabs.
+ */
+function drake_ci_behat_test($context) {
+  // If port was not specified, pick a random port. With so many to choose from,
+  // we're unlikely to collide.
+  $port = !empty($context['port']) ? $context['port'] : mt_rand(50000, 60000);
+
+  $cleanup = !((bool) $context['no-cleanup']);
+  $site_dir = $port . '.' . $context['site-host'];
+  $profile = $context['profile'];
+
+  $default_options = array(
+    'uri' => 'http://' . $context['site-host'] . ':' . $port,
+  );
+
+  $target_site_path = $context['root'] . '/sites/' . $site_dir;
+
+  // If the site dir exists, assume we don't need to set it up.
+  if (file_exists($target_site_path)) {
+    $new_name = $context['root'] . '/sites/' . $site_dir . '_archived_' . time();;
+    if (!rename($target_site_path, $new_name)) {
+      return drake_action_error(dt('Site_dir %site_dir already exists and could not rename it, exiting.', array('%site_dir' => $site_dir)));
+    }
+  }
+
+  // Check output directory.
+  if (!is_dir($context['output-dir']) && !mkdir($context['output-dir'], 0777, TRUE)) {
+    return drake_action_error(dt('Could not access or create output-dir "%dir"', array('%dir', $context['output-dir'])));
+  }
+
+  // Prepare the sitedir, cd to it so that we can unpack the baseline package
+  // and start the php webserver.
+  drush_mkdir($target_site_path);
+  // Register dir/files for deletion when we're done.
+  if ($cleanup) {
+    // Delete site dir.
+    drush_register_file_for_deletion('sites/' . $site_dir, TRUE);
+  }
+
+  $oldcwd = getcwd();
+  chdir($target_site_path);
+
+  if (file_exists($context['baseline-package'])) {
+    // Unpack baseline package.
+    // Method taken from backup.provision.inc from aegirs provision.
+    $command = 'gunzip -c %s | tar pxf -';
+    drush_log(dt('Running: %command in %target',
+      array(
+        '%command' => sprintf($command, $context['baseline-package']),
+        '%target'  => $target_site_path,
+      )
+    ));
+    $result = drush_shell_exec($command, $context['baseline-package']);
+    if (!$result) {
+      return drake_action_error(dt('Could not unpack baseline package  %package into %target.', array('%package' => $context['baseline-package'], '%target' => $target_site_path )));
+    }
+  }
+
+  $db_spec = array(
+    'driver' => 'mysql',
+    'database' => (strlen($profile) > 8 ? substr($profile, 0, 8) : $profile) . "_" . $port,
+    'host' => 'localhost',
+    'username' => $context['db-su'],
+    'password' => $context['db-su-pw'],
+    'port' => 3306,
+    'prefix' => '',
+    'collation' => 'utf8_general_ci',
+  );
+
+  // Create the database, this requires the db-su user to have a CREATE DATABASE
+  // grant.
+  if (!_drush_sql_create($db_spec)) {
+    return drake_action_error(dt('Could not create database %database.', array('%database', $db_spec['database'])));
+  }
+
+  $procs_to_be_cleaned = array();
+  // At this point we've created stuff we might want to clean up, so register a shutdown function.
+  // processes are to be populated later.
+  register_shutdown_function('_drake_ci_saucelabs_shutdown', &$procs_to_be_cleaned, $db_spec, $cleanup);
+
+  // Setup settings.php
+  $settings_path = $target_site_path . '/settings.php';
+  // If settings.php is missing, create it.
+  if (!file_exists($settings_path)) {
+    touch($settings_path);
+    // TODO: Default settings?
+  }
+  else {
+    // Attempt to detect the type of settings file and overrides accordingly.
+    $contents = file_get_contents($settings_path);
+
+    // Aegir.
+    if (strpos($contents, 'aegir_api') !== FALSE) {
+      // We now know the location of the files.
+      $override['conf']['file_public_path'] = 'sites/' . $site_dir . '/files';
+      $override['conf']['file_temporary_path'] = 'sites/' . $site_dir . '/private/temp';
+      $override['conf']['file_private_path'] = 'sites/' . $site_dir . '/private/files';
+    }
+  }
+  $override['databases']['default']['default'] = $db_spec;
+
+  // Fix permission ib settings.php.
+  if (!chmod($settings_path, 0755)) {
+    return drake_action_error(dt('Could make %file writable', array('%file', $settings_path)));
+  }
+
+  if (!empty($override)) {
+    $fh = fopen($settings_path, 'a') or die("can't open $settings_path");
+    $buffer = '';
+    foreach ($override as $setting => $value) {
+      $buffer .= "\$$setting = " . var_export($value, TRUE) . ";\n";
+    }
+    fwrite($fh, $buffer);
+    fclose($fh);
+  }
+
+  // Import database if a dump can be found
+  // Import dump.
+  $sqldump_path = $target_site_path . '/database.sql';
+
+  if (file_exists($sqldump_path)) {
+    $success = _drush_sql_query(NULL, $db_spec, $sqldump_path);
+    // Import database.
+    if (!$success) {
+      return drake_action_error(dt('Could not import database-dump from %dump.', array('%dump', $target_site_path . '/database.sql')));
+    }
+  }
+  else {
+    // Site install.
+    $args = array($profile);
+    $db_url = $db_spec['driver'] . '://' .  $db_spec['username'] . ':' . $db_spec['password'] . '@' . $db_spec['host'] . '/' . $db_spec['database'];
+
+    $options = array(
+      // Drupal does not like it when the database is in the site dir, because
+      // the installer changes the permissions so SQLite can't create a lock
+      // file which makes it fail. So we'll put it outside.
+      'db-url' => $db_url,
+      'sites-subdir' => $site_dir,
+    );
+    $res = drush_invoke_process(NULL, 'site-install', $args, $options, TRUE);
+
+    if (!$res || $res['error_status'] != 0) {
+      return drake_action_error(dt('Error installing site.'));
+    }
+  }
+
+  // Use a temporary log file, to avoid buffers being filled.
+  $log_file = '/tmp/behat-webserver' . $port . '-' . posix_getpid() . '.log';
+  drush_register_file_for_deletion($log_file);
+  $descriptorspec = array(
+    0 => array('file', '/dev/null', 'r'),
+    1 => array('file', '/dev/null', 'w'),
+    2 => array('file', $log_file, 'w'),
+  );
+
+  // We'd like to use drush runserver instead, but in initial testing runserver
+  // would cause core tests to fail on login, while this would not.
+  $php_process = proc_open('/usr/local/Cellar/php54/5.4.16/bin/php -t ' . $context['root'] . ' -S localhost:' . $port . ' ' . dirname(__FILE__) . '/router.php', $descriptorspec, $pipes);
+  $procs_to_be_cleaned[] = $php_process;
+  if (!$php_process) {
+    return drake_action_error(dt('Could not start internal web server.'));
+  }
+
+  drush_log(dt('Server running at http://%host:%port %proc',
+    array(
+      '%host' => $context['site-host'],
+      '%port' => $port,
+      '%proc' => $php_process)
+  ), 'status');
+
+  // Use a temporary log file, to avoid buffers being filled.
+  $stdout = '/tmp/behat-saucelabs-' . $port . '-' . posix_getpid() . '.log';
+  $errout = '/tmp/behat-saucelabs-error-' . $port . '-' . posix_getpid() . '.log';
+  drush_register_file_for_deletion($log_file);
+  $descriptorspec = array(
+    0 => array('file', '/dev/null', 'r'),
+    1 => array('file', 'php://stdout', 'w'),
+    2 => array('file', $errout, 'w'),
+  );
+
+  $mink_extension_params = array (
+    'base_url' => 'http://' . $context['site-host'] . ':' . $port,
+    'selenium2' => array(
+      'wd_host' => $context['selenium-wd-host'],
+    )
+  );
+
+  // Extract capabillities.
+  // Generate name if not specified.
+  $caps = array();
+  if (empty($context['selenium-cap-name'])) {
+    // TODO: use timestamp instead.
+    $context['selenium-cap-name'] = $context['site-host'] . "-" . time();
+  }
+  foreach ($context as $key => $value) {
+    if (strpos($key, 'selenium-cap-') === 0 && !empty($value)) {
+      $caps[] = "'" . substr($key, strlen('selenium-cap-')) . "':'" . $value . "'";
+    }
+  }
+
+  // Wrap in brances seperate by comma.
+  if (count($caps) > 0) {
+    $mink_extension_params['selenium2']['capabilities'] = '{' . implode(',', $caps) . '}';
+  }
+
+  $behat_dir = $context['root'] . $context['behat-dir'];
+  $behat_config = $context['behat-config'];
+  $behat_features = $context['behat-features'];
+
+  $behat_proc_env = $_ENV;
+  $behat_proc_env['MINK_EXTENSION_PARAMS'] = http_build_query($mink_extension_params);
+
+  $cmd = 'behat -v -c ' . escapeshellarg($behat_config) . ' -f junit --out ' . escapeshellarg($context['output-dir']) . ' ' . escapeshellarg($behat_features);
+  drush_log('Running ' . $cmd);
+  $behat_process = proc_open($cmd, $descriptorspec, $pipes, $behat_dir, $behat_proc_env);
+  $procs_to_be_cleaned[] = $behat_process;
+  $max_executiontime = $context['max-executiontime'];
+  $start = time();
+  if ($php_process) {
+    do {
+      sleep(1);
+
+      // TODO: Clean up behat process.
+      $proc_status = proc_get_status($behat_process);
+      // Halt if max execution-time has passed.
+      $force_exit = time() > ($start + ($max_executiontime));
+    } while($proc_status['running'] && $proc_status['pid'] && !$force_exit);
+  }
+  else {
+    if (!$behat_process) {
+      return drake_action_error(dt('Execute %cmd.', array('%cmd' => $cmd)));
+    }
+  }
+
+  if ($force_exit) {
+    return drake_action_error(dt('Gave up waiting for behat to complete, more than %max second passed.', array('%max' => $max_executiontime)));
+  }
+  // Done, go back to original dir.
+  chdir($oldcwd);
+
+  // Check status and finish up.
+  if ($proc_status['exitcode'] !== 0) {
+    drush_log("Behat error output", 'notice');
+    $errorout_lines = file($errout);
+    foreach ($errorout_lines as $line) {
+      drush_log($line);
+    }
+
+    return drake_action_error(dt('Non-zero exit-code(%exit) from behat indicates an error during execution, marking test as failed', array('%exit' => $proc_status['exitcode'])));
+  }
+  else {
+    drush_log('Test completed successfully', 'OK');
+    // all is good
+  }
+}
+
+/**
+ * Shutdown function to end the PHP server process.
+ */
+function _drake_ci_saucelabs_shutdown($processes, $db_spec, $cleanup) {
+  // TODO: Refactor the runtest version of this function so that we can call the
+  // shutdown process code alone.
+  foreach ($processes as $process) {
+    _drake_ci_run_simpletests_shutdown($process);
+  }
+
+  // Drop the database.
+  if ($cleanup) {
+    if ($db_spec['driver'] == 'mysql') {
+      $dbname = '`' . $db_spec['database'] . '`';
+      $sql = sprintf('DROP DATABASE IF EXISTS %s;', $dbname);
+
+      // Strip the database-name out of the spec as it does not exist yet.
+      $drop_spec = $db_spec;
+      unset($drop_spec['database']);
+      $success = _drush_sql_query($sql, $drop_spec);
+      if ($success) {
+        drush_log(dt('Database %dbname successfully dropped', array('%dbname', $db_spec['database'])));
+      }
+      else {
+        drush_log(dt('Database %dbname successfully dropped', array('%dbname', $db_spec['database'])), 'error');
+      }
+    }
+    else {
+      drush_log(dt('Could not drop database, unsupported driver "%driver"', array('%driver' => $db_spec['driver'])));
+    }
+  }
+}
+
 /**
  * Action callback; run simpletests for files.
  */
@@ -1319,6 +1697,7 @@ function drake_ci_run_simpletests($context) {
  * Shutdown function to end the PHP server process.
  */
 function _drake_ci_run_simpletests_shutdown($process) {
+  drush_log("Cleaning up processes after shutdown");
   // We assume that all is dandy if the server is still running. Can't count on
   // return code from proc_close.
   $proc_status = proc_get_status($process);
@@ -1328,6 +1707,7 @@ function _drake_ci_run_simpletests_shutdown($process) {
   }
 
   if ($proc_status['running'] && $proc_status['pid']) {
+    drush_log(dt('Process started by command "%cmd" is still runnning, killing...', array('%cmd' => $proc_status['command'])));
     // In some PHP versions, the child process isn't php, but sh. Try to find
     // the child processes of the process and kill them off by hand first.
     $ppid = $proc_status['pid'];
@@ -1343,6 +1723,7 @@ function _drake_ci_run_simpletests_shutdown($process) {
       }
     }
     foreach ($pids as $pid) {
+      drush_log("Killing process with pid " . $pid);
       posix_kill($pid, 2);
     }
     // Terminate the main child process.
