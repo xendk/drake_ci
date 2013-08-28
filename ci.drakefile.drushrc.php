@@ -1428,11 +1428,15 @@ function drake_ci_behat_test($context) {
 
   // We'd like to use drush runserver instead, but in initial testing runserver
   // would cause core tests to fail on login, while this would not.
-  $php_process = proc_open('/usr/local/Cellar/php54/5.4.16/bin/php -t ' . $context['root'] . ' -S localhost:' . $port . ' ' . dirname(__FILE__) . '/router.php', $descriptorspec, $pipes);
-  $procs_to_be_cleaned[] = $php_process;
-  if (!$php_process) {
+  $php_process = proc_open('php -t ' . $context['root'] . ' -S localhost:' . $port . ' ' . dirname(__FILE__) . '/router.php', $descriptorspec, $pipes);
+  // Wait a sec.
+  sleep(1);
+  // Then check that the server started.
+  $proc_status = proc_get_status($php_process);
+  if (!$php_process || !$proc_status['running']) {
     return drake_action_error(dt('Could not start internal web server.'));
   }
+  $procs_to_be_cleaned[] = $php_process;
 
   drush_log(dt('Webserver running at http://%host:%port %proc',
     array(
@@ -1506,10 +1510,18 @@ function drake_ci_behat_test($context) {
   drush_log(dt('Running ' . $cmd . ' in behat-dir: %dir', array('%dir' => $behat_dir)), 'debug');
   drush_log(dt('Starting behat session named %session', array('%session' => $context['selenium-cap-name'])), 'ok');
   $behat_process = proc_open($cmd, $descriptorspec, $pipes, $behat_dir, $behat_proc_env);
-  $procs_to_be_cleaned[] = $behat_process;
   $max_executiontime = $context['max-executiontime'];
   $start = time();
-  if ($php_process) {
+
+  // Wait a sec.
+  sleep(1);
+  // Then get the process status.
+  $proc_status = proc_get_status($behat_process);
+  $force_exit = FALSE;
+  if ($php_process && $proc_status['running']) {
+    $procs_to_be_cleaned[] = $behat_process;
+
+    // Wait for the process to stop.
     do {
       sleep(1);
 
