@@ -1205,7 +1205,6 @@ $actions['run-behat'] = array(
       'default' => NULL,
     ),
     'selenium-wd-host' => 'Webdriver host, eg "username:xxxxxxxxx-xxxxx-xxxx-xxxx-xxxxxxxxxx@ondemand.saucelabs.com/wd/hub"',
-    // TODO: action for generating a package.
     'baseline-package' => array(
       'description' => 'Baseline package - an aegir backup',
       'default' => NULL,
@@ -1313,7 +1312,11 @@ function drake_ci_behat_test($context) {
     ));
     $result = drush_shell_exec($command, $context['baseline-package']);
     if (!$result) {
-      return drake_action_error(dt('Could not unpack baseline package  %package into %target.', array('%package' => $context['baseline-package'], '%target' => $target_site_path )));
+      return drake_action_error(dt('Could not unpack baseline package %package into the temporary site-dir %target.', array('%package' => $context['baseline-package'], '%target' => $target_site_path)));
+    }
+    else {
+      $pathinfo = pathinfo($context['baseline-package']);
+      drush_log(dt('Successfully unpacked baseline package %package into %target.', array('%package' => $pathinfo['filename'], '%target' => $site_dir)), 'ok');
     }
   }
 
@@ -1332,6 +1335,9 @@ function drake_ci_behat_test($context) {
   // grant.
   if (!_drush_sql_create($db_spec)) {
     return drake_action_error(dt('Could not create database %database.', array('%database', $db_spec['database'])));
+  }
+  else {
+    drush_log(dt('Created temporary database %dbname', array('%dbname' => $db_spec['database'])));
   }
 
   $procs_to_be_cleaned = array();
@@ -1385,6 +1391,9 @@ function drake_ci_behat_test($context) {
     if (!$success) {
       return drake_action_error(dt('Could not import database-dump from %dump.', array('%dump', $target_site_path . '/database.sql')));
     }
+    else {
+      drush_log(dt('Sucessfully imported database.sql into the database %dbname', array('%dbname' => $db_spec['database'])), 'ok');
+    }
   }
   else {
     // Site install.
@@ -1402,6 +1411,9 @@ function drake_ci_behat_test($context) {
 
     if (!$res || $res['error_status'] != 0) {
       return drake_action_error(dt('Error installing site.'));
+    }
+    else {
+      drush_log(dt('Installed site %sitedir with profile %profile', array('%sitedir' => $site_dir, '%profile' => $profile)), 'ok');
     }
   }
 
@@ -1422,12 +1434,12 @@ function drake_ci_behat_test($context) {
     return drake_action_error(dt('Could not start internal web server.'));
   }
 
-  drush_log(dt('Server running at http://%host:%port %proc',
+  drush_log(dt('Webserver running at http://%host:%port %proc',
     array(
       '%host' => $context['site-host'],
       '%port' => $port,
       '%proc' => $php_process)
-  ), 'status');
+  ), 'ok');
 
   // Use a temporary log file, to avoid buffers being filled.
   $stdout = $output_dir . '/behat-saucelabs-' . $port . '-' . posix_getpid() . '.log';
@@ -1443,7 +1455,7 @@ function drake_ci_behat_test($context) {
     'base_url' => 'http://' . $context['site-host'] . ':' . $port,
     'selenium2' => array(
       'wd_host' => $context['selenium-wd-host'],
-    )
+    ),
   );
 
   // Extract capabillities.
@@ -1490,8 +1502,9 @@ function drake_ci_behat_test($context) {
   $behat_proc_env = $_ENV;
   $behat_proc_env['MINK_EXTENSION_PARAMS'] = http_build_query($mink_extension_params);
 
-  drush_log('Running ' . $cmd);
   $cmd = 'behat -v -c ' . escapeshellarg($behat_config) . ' -f junit --out ' . escapeshellarg($output_dir) . ' ' . escapeshellarg($behat_features);
+  drush_log(dt('Running ' . $cmd . ' in behat-dir: %dir', array('%dir' => $behat_dir)), 'debug');
+  drush_log(dt('Starting behat session named %session', array('%session' => $context['selenium-cap-name'])), 'ok');
   $behat_process = proc_open($cmd, $descriptorspec, $pipes, $behat_dir, $behat_proc_env);
   $procs_to_be_cleaned[] = $behat_process;
   $max_executiontime = $context['max-executiontime'];
@@ -1511,26 +1524,26 @@ function drake_ci_behat_test($context) {
       return drake_action_error(dt('Execute %cmd.', array('%cmd' => $cmd)));
     }
   }
-
   if ($force_exit) {
     return drake_action_error(dt('Gave up waiting for behat to complete, more than %max second passed.', array('%max' => $max_executiontime)));
   }
   // Done, go back to original dir.
   chdir($oldcwd);
 
+  drush_log(dt('Behat execution completed in %sec seconds, output can be found in %outputdir', array('%sec' => (time() - $start), '%outputdir' => $output_dir)), 'ok');
   // Check status and finish up.
   if ($proc_status['exitcode'] !== 0) {
     drush_log("Behat error output", 'notice');
     $errorout_lines = file($errout);
     foreach ($errorout_lines as $line) {
-      drush_log($line);
+      drush_log($line, 'notice');
     }
 
     return drake_action_error(dt('Non-zero exit-code(%exit) from behat indicates an error during execution, marking test as failed', array('%exit' => $proc_status['exitcode'])));
   }
   else {
-    drush_log('Test completed successfully', 'OK');
-    // all is good
+    drush_log('Test completed successfully', 'success');
+    return TRUE;
   }
 }
 
