@@ -1223,7 +1223,7 @@ $actions['run-behat'] = array(
       'default' => NULL,
     ),
     'no-cleanup' => array(
-      'description' => 'Whether to delete all traces of the site after execution',
+      'description' => 'Whether to delete temporary site and database used for the test after execution has been completed.',
       'default' => FALSE,
     ),
     'site-host' => array(
