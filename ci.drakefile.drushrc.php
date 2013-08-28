@@ -1166,7 +1166,7 @@ $tasks['ci-run-behat'] = array(
   'profile' => context_optional('profile', 'default'),
   'port' => context_optional('port'),
   'site-host' => context_optional('site-host'),
-  'output-dir' => context_optional('package-output-dir', context('[@self:site:root]/tests/behat')),
+  'output-dir' => context_optional('output-dir', context('[@self:site:root]/tests/behat')),
   'behat-features' => context('behat-features'),
   'behat-config' => context('behat-config'),
   'behat-dir' => context('behat-dir'),
@@ -1261,7 +1261,14 @@ function drake_ci_behat_test($context) {
 
   $target_site_path = $context['root'] . '/sites/' . $site_dir;
 
-  // If the site dir exists, assume we don't need to set it up.
+  // Make output-dir absolute.
+  if (strpos($context['output-dir'], '/') !== 0) {
+    $output_dir = $context['root'] . '/' . $context['output-dir'];
+  } else {
+    $output_dir = $context['output-dir'];
+  }
+
+  // If the site dir exists, move it out of the way.
   if (file_exists($target_site_path)) {
     $new_name = $context['root'] . '/sites/' . $site_dir . '_archived_' . time();;
     if (!rename($target_site_path, $new_name)) {
@@ -1270,8 +1277,8 @@ function drake_ci_behat_test($context) {
   }
 
   // Check output directory.
-  if (!is_dir($context['output-dir']) && !mkdir($context['output-dir'], 0777, TRUE)) {
-    return drake_action_error(dt('Could not access or create output-dir "%dir"', array('%dir', $context['output-dir'])));
+  if (!is_dir($output_dir) && !mkdir($output_dir, 0777, TRUE)) {
+    return drake_action_error(dt('Could not access or create output-dir "%dir"', array('%dir', $output_dir)));
   }
 
   // Prepare the sitedir, cd to it so that we can unpack the baseline package
@@ -1415,12 +1422,12 @@ function drake_ci_behat_test($context) {
   ), 'status');
 
   // Use a temporary log file, to avoid buffers being filled.
-  $stdout = '/tmp/behat-saucelabs-' . $port . '-' . posix_getpid() . '.log';
-  $errout = '/tmp/behat-saucelabs-error-' . $port . '-' . posix_getpid() . '.log';
+  $stdout = $output_dir . '/behat-saucelabs-' . $port . '-' . posix_getpid() . '.log';
+  $errout = $output_dir . '/behat-saucelabs-error-' . $port . '-' . posix_getpid() . '.log';
   drush_register_file_for_deletion($log_file);
   $descriptorspec = array(
     0 => array('file', '/dev/null', 'r'),
-    1 => array('file', 'php://stdout', 'w'),
+    1 => array('file', $stdout, 'w'),
     2 => array('file', $errout, 'w'),
   );
 
@@ -1456,8 +1463,8 @@ function drake_ci_behat_test($context) {
   $behat_proc_env = $_ENV;
   $behat_proc_env['MINK_EXTENSION_PARAMS'] = http_build_query($mink_extension_params);
 
-  $cmd = 'behat -v -c ' . escapeshellarg($behat_config) . ' -f junit --out ' . escapeshellarg($context['output-dir']) . ' ' . escapeshellarg($behat_features);
   drush_log('Running ' . $cmd);
+  $cmd = 'behat -v -c ' . escapeshellarg($behat_config) . ' -f junit --out ' . escapeshellarg($output_dir) . ' ' . escapeshellarg($behat_features);
   $behat_process = proc_open($cmd, $descriptorspec, $pipes, $behat_dir, $behat_proc_env);
   $procs_to_be_cleaned[] = $behat_process;
   $max_executiontime = $context['max-executiontime'];
