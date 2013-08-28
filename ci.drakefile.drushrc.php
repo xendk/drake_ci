@@ -1340,10 +1340,10 @@ function drake_ci_behat_test($context) {
     drush_log(dt('Created temporary database %dbname', array('%dbname' => $db_spec['database'])));
   }
 
-  $procs_to_be_cleaned = array();
-  // At this point we've created stuff we might want to clean up, so register a shutdown function.
-  // processes are to be populated later.
-  register_shutdown_function('_drake_ci_saucelabs_shutdown', &$procs_to_be_cleaned, $db_spec, $cleanup);
+  // Make sure the database gets dropped at exit.
+  if ($cleanup) {
+    register_shutdown_function('_drake_ci_drop_db_shutdown', $db_spec);
+  }
 
   // Setup settings.php
   $settings_path = $target_site_path . '/settings.php';
@@ -1429,6 +1429,8 @@ function drake_ci_behat_test($context) {
   // We'd like to use drush runserver instead, but in initial testing runserver
   // would cause core tests to fail on login, while this would not.
   $php_process = proc_open('php -t ' . $context['root'] . ' -S localhost:' . $port . ' ' . dirname(__FILE__) . '/router.php', $descriptorspec, $pipes);
+  register_shutdown_function('_drake_ci_kill_process_shutdown', $php_process);
+
   // Wait a sec.
   sleep(1);
   // Then check that the server started.
@@ -1510,6 +1512,8 @@ function drake_ci_behat_test($context) {
   drush_log(dt('Running ' . $cmd . ' in behat-dir: %dir', array('%dir' => $behat_dir)), 'debug');
   drush_log(dt('Starting behat session named %session', array('%session' => $context['selenium-cap-name'])), 'ok');
   $behat_process = proc_open($cmd, $descriptorspec, $pipes, $behat_dir, $behat_proc_env);
+  register_shutdown_function('_drake_ci_kill_process_shutdown', $behat_process);
+
   $max_executiontime = $context['max-executiontime'];
   $start = time();
 
@@ -1518,7 +1522,7 @@ function drake_ci_behat_test($context) {
   // Then get the process status.
   $proc_status = proc_get_status($behat_process);
   $force_exit = FALSE;
-  if ($php_process && $proc_status['running']) {
+  if ($behat_process && $proc_status['running']) {
     $procs_to_be_cleaned[] = $behat_process;
 
     // Wait for the process to stop.
@@ -1562,33 +1566,25 @@ function drake_ci_behat_test($context) {
 /**
  * Shutdown function to end the PHP server process.
  */
-function _drake_ci_saucelabs_shutdown($processes, $db_spec, $cleanup) {
-  // TODO: Refactor the runtest version of this function so that we can call the
-  // shutdown process code alone.
-  foreach ($processes as $process) {
-    _drake_ci_run_simpletests_shutdown($process);
-  }
-
+function _drake_ci_drop_db_shutdown($db_spec) {
   // Drop the database.
-  if ($cleanup) {
-    if ($db_spec['driver'] == 'mysql') {
-      $dbname = '`' . $db_spec['database'] . '`';
-      $sql = sprintf('DROP DATABASE IF EXISTS %s;', $dbname);
+  if ($db_spec['driver'] == 'mysql') {
+    $dbname = '`' . $db_spec['database'] . '`';
+    $sql = sprintf('DROP DATABASE IF EXISTS %s;', $dbname);
 
-      // Strip the database-name out of the spec as it does not exist yet.
-      $drop_spec = $db_spec;
-      unset($drop_spec['database']);
-      $success = _drush_sql_query($sql, $drop_spec);
-      if ($success) {
-        drush_log(dt('Database %dbname successfully dropped', array('%dbname', $db_spec['database'])));
-      }
-      else {
-        drush_log(dt('Database %dbname successfully dropped', array('%dbname', $db_spec['database'])), 'error');
-      }
+    // Strip the database-name out of the spec as it does not exist yet.
+    $drop_spec = $db_spec;
+    unset($drop_spec['database']);
+    $success = _drush_sql_query($sql, $drop_spec);
+    if ($success) {
+      drush_log(dt('Database %dbname successfully dropped', array('%dbname', $db_spec['database'])));
     }
     else {
-      drush_log(dt('Could not drop database, unsupported driver "%driver"', array('%driver' => $db_spec['driver'])));
+      drush_log(dt('Database %dbname successfully dropped', array('%dbname', $db_spec['database'])), 'error');
     }
+  }
+  else {
+    drush_log(dt('Could not drop database, unsupported driver "%driver"', array('%driver' => $db_spec['driver'])));
   }
 }
 
@@ -1707,7 +1703,7 @@ function drake_ci_run_simpletests($context) {
   }
 
   // Register a shutdown function to properly close the subprocess.
-  register_shutdown_function('_drake_ci_run_simpletests_shutdown', $process);
+  register_shutdown_function('_drake_ci_kill_process_shutdown', $process);
 
   // Figure out which of the potential test names is available as tests that can
   // be run.
@@ -1766,7 +1762,7 @@ function drake_ci_run_simpletests($context) {
 /**
  * Shutdown function to end the PHP server process.
  */
-function _drake_ci_run_simpletests_shutdown($process) {
+function _drake_ci_kill_process_shutdown($process) {
   drush_log("Cleaning up processes after shutdown");
   // We assume that all is dandy if the server is still running. Can't count on
   // return code from proc_close.
