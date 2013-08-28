@@ -7,6 +7,11 @@
 
 $api = 1;
 
+/**
+ * Prefix used for Selenium Desired Capability parameters.
+ */
+define('SELENIUM_CAP_PREFIX', 'selenium-cap-');
+
 /*
  * Default context for tasks.
  */
@@ -1170,7 +1175,7 @@ $tasks['ci-run-behat'] = array(
 // See http://saucelabs.com/docs/additional-config#desired-capabilities
 $behat_capabillities = array('platform', 'browser', 'version', 'name');
 foreach ($behat_capabillities as $cap) {
-  $key = 'selenium-cap-' . $cap;
+  $key = SELENIUM_CAP_PREFIX . $cap;
   $tasks['ci-run-behat'][$key] = context_optional($key);
 }
 
@@ -1224,12 +1229,18 @@ $actions['run-behat'] = array(
     // TODO: Allow modules to be enabled/disabled prior to execution.
   ),
 );
-foreach ($behat_capabillities as $cap) {
-  $key = 'selenium-cap-' . $cap;
-  $actions['run-behat']['parameters'][$key] = array (
-    'description' => 'Selenium descired capabillity "' . $cap . '"',
-    'default' => NULL,
-  );
+
+// Mirror the settings from the task. A bit of a hack, but in lack of a way to
+// inspect the task arguments to proviede dynamic parameters this is the next
+// best thing.
+foreach ($tasks['ci-run-behat'] as $key) {
+  if (strpos($key, SELENIUM_CAP_PREFIX) === 0) {
+    $name =  substr($key, strlen(SELENIUM_CAP_PREFIX));
+    $actions['run-behat']['parameters'][$key] = array(
+      'description' => 'Selenium desired capabillity "' . $name . '"',
+      'default' => NULL,
+    );
+  }
 }
 
 /**
@@ -1425,11 +1436,11 @@ function drake_ci_behat_test($context) {
   $caps = array();
   if (empty($context['selenium-cap-name'])) {
     // TODO: use timestamp instead.
-    $context['selenium-cap-name'] = $context['site-host'] . "-" . time();
+    $context['selenium-cap-name'] = $context['site-host'] . '-' . $context['profile'] . '-' . date("YmdHis");
   }
   foreach ($context as $key => $value) {
-    if (strpos($key, 'selenium-cap-') === 0 && !empty($value)) {
-      $caps[] = "'" . substr($key, strlen('selenium-cap-')) . "':'" . $value . "'";
+    if (strpos($key, SELENIUM_CAP_PREFIX) === 0 && !empty($value)) {
+      $caps[] = "'" . substr($key, strlen(SELENIUM_CAP_PREFIX)) . "':'" . $value . "'";
     }
   }
 
