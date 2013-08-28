@@ -1200,7 +1200,7 @@ $actions['run-behat'] = array(
       'default' => NULL,
     ),
     'db-su' => 'Database Super-user allowed to create databases',
-    'db-su-pwd' => array(
+    'db-su-pw' => array(
       'description' => 'Password for the database Superuser',
       'default' => NULL,
     ),
