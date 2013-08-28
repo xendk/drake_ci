@@ -1167,9 +1167,9 @@ $tasks['ci-run-behat'] = array(
   'port' => context_optional('port'),
   'site-host' => context_optional('site-host'),
   'output-dir' => context_optional('output-dir', context('[@self:site:root]/tests/behat')),
-  'behat-features' => context('behat-features'),
-  'behat-config' => context('behat-config'),
-  'behat-dir' => context('behat-dir'),
+  'behat-features' => context_optional('behat-features'),
+  'behat-config' => context_optional('behat-config'),
+  'behat-dir' => context_optional('behat-dir'),
 );
 
 // See http://saucelabs.com/docs/additional-config#desired-capabilities
@@ -1187,10 +1187,18 @@ $actions['run-behat'] = array(
   'callback' => 'drake_ci_behat_test',
   'parameters' => array(
     'output-dir' => 'Directory to output junit compatible output to',
-    // TODO: Could this be optional?
-    'behat-features' => 'Behat features to execute',
-    'behat-config' => 'Behat configuration file, relative to behat-dir',
-    'behat-dir' => 'Behat directory relative to the drupal root.',
+    'behat-features' => array(
+      'description' => 'Behat features to execute, relative to behat-dir. Defaults to "features/"',
+      'default' => 'features/',
+    ),
+    'behat-config' => array(
+      'description' => 'Behat configuration file, relative to behat-dir, defaults to config/behat.yml',
+      'default' => 'config/behat.yml',
+    ),
+    'behat-dir' => array(
+      'description' => 'Behat directory relative to the drupal root, defaults to "sites/all/tests/behat" or "profiles/<profile>/tests/behat" if profile is specified',
+      'default' => NULL,
+    ),
     'db-su' => 'Database Super-user allowed to create databases',
     'db-su-pwd' => array(
       'description' => 'Password for the database Superuser',
@@ -1456,7 +1464,26 @@ function drake_ci_behat_test($context) {
     $mink_extension_params['selenium2']['capabilities'] = '{' . implode(',', $caps) . '}';
   }
 
-  $behat_dir = $context['root'] . $context['behat-dir'];
+  if (empty($context['behat-dir'])) {
+    // Generate a behatdir.
+    if (!empty($context['profile'])) {
+      $context['behat-dir'] = 'profiles/' . $context['profile'] . '/tests/behat';
+    }
+    else {
+      $context['behat-dir'] = 'sites/all/tests/behat';
+    }
+  }
+
+  if (strpos($context['behat-dir'], '/') !== 0) {
+    // Make the relative path absolute.
+    $behat_dir = $context['root'] . '/' . $context['behat-dir'];
+  }
+  else {
+    // Already absolute, nothign to do.
+    $behat_dir = $context['behat-dir'];
+  }
+  $behat_dir = rtrim($behat_dir, '/');
+
   $behat_config = $context['behat-config'];
   $behat_features = $context['behat-features'];
 
