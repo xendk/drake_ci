@@ -1623,7 +1623,7 @@ function drake_ci_behat_test($context) {
 }
 
 /**
- * Shutdown function to end the PHP server process.
+ * Shutdown function drop a database.
  */
 function _drake_ci_drop_db_shutdown($db_spec) {
   // Drop the database.
