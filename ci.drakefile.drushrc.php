@@ -1175,7 +1175,17 @@ $tasks['ci-run-behat'] = array(
 );
 
 // See http://saucelabs.com/docs/additional-config#desired-capabilities
-$behat_capabillities = array('platform', 'browser', 'version', 'name');
+$behat_capabillities = array('platform', 'browser', 'version', 'name', 'name',
+                             'build', 'tags', 'passed', 'custom-data', 'record-video',
+                             'video-upload-on-pass', 'record-screenshots',
+                             'capture-html', 'webdriver.remote.quietExceptions',
+                             'sauce-advisor', 'selenium-version', 'single-window',
+                             'user-extensions-url', 'firefox-profile-url',
+                             'max-duration', 'command-timeout', 'idle-timeout',
+                             'prerun', 'tunnel-identifier', 'screen-resolution',
+                             'disable-popup-handler', 'avoid-proxy', 'public');
+// Would be nice just to be able to handle this dynamically, but for now this
+// will have to do.
 foreach ($behat_capabillities as $cap) {
   $key = SELENIUM_CAP_PREFIX . $cap;
   $tasks['ci-run-behat'][$key] = context_optional($key);
