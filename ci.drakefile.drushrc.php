@@ -1570,6 +1570,25 @@ function drake_ci_behat_test($context) {
   }
 
   $behat_config = $context['behat-config'];
+
+  // Inject the video-url logger extension into behat-config.
+  $behat_config_full = $behat_dir . '/' . $behat_config;
+  if (!file_exists($behat_config_full) || !is_writable($behat_config_full)) {
+    return drake_action_error(dt('Could not update behat-config %file, either file could not be found or written to.', array('%file' => $behat_config_full)));
+  }
+  $behat_config_content = file_get_contents($behat_config_full);
+  // Make sure the extension is not already in there.
+  if (!preg_match('/log_videourl.php/m', $behat_config_content)) {
+    // A bit crude, but should work for now.
+    $behat_extension_path = "'" . dirname(__FILE__) . "/behat_extensions/log_videourl.php': ~";
+    // Find the extesions: entry, inject an indented entry after it.
+    $behat_config_content = preg_replace('/(\s+)(extensions:).*$/m', "\$1\$2\$1  " . $behat_extension_path, $behat_config_content);
+
+    // Preserve the old file for easier debugging if something goes wrong.
+    copy($behat_config_full, $behat_config_full . '_old');
+    file_put_contents($behat_config_full, $behat_config_content);
+  }
+
   $behat_features = $context['behat-features'];
 
   $behat_proc_env = $_ENV;
@@ -1612,6 +1631,37 @@ function drake_ci_behat_test($context) {
       // Halt if max execution-time has passed.
       $force_exit = time() > ($start + ($max_executiontime));
     } while($proc_status['running'] && $proc_status['pid'] && !$force_exit);
+
+    // Scan the output logfile for video-links, also dump to log.
+    // TODO: we only do this to get the progress, would be nicer to just allow
+    // it to go to stdout directly.
+    $stdout_content = file($stdout_logfile);
+    foreach ($stdout_content as $line) {
+      if (preg_match('#saucelabs.com/jobs#', $line)) {
+        $matches[] = $line;
+      }
+      else {
+        drush_log(rtrim($line), 'success');
+      }
+    }
+
+    // Log the video-url via drush, and generate a html-report.
+    // TODO: Inject the URL into the behat html-report instead.
+    drush_log("Video URL:", 'success');
+    $matches = array_unique($matches);
+    foreach ($matches as $match) {
+      drush_log($match, 'success');
+      $matches_markup .= "<li><a href=\"$match\">$match</a>\n";
+    }
+    $report = <<<EOT
+<html><head></head><body>
+<h1>Saucelabs results</h1>
+<ul>
+  $matches_markup
+</ul>
+</body></html>
+EOT;
+    file_put_contents($output_dir . '/video_url.html', $report);
   }
   else {
     if (!$behat_process) {

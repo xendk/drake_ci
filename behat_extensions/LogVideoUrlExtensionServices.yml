@@ -1,0 +1,5 @@
+services:
+    reload.log_videourl.listener:
+        class: LogVideoUrlListener
+        arguments: [ '@behat.mink', '%behat.mink.parameters%', '%behat.mink.selenium2.wd_host%' ]
+        tags: [{ name: 'behat.event_subscriber', priority: 0 }]
