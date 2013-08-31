@@ -1309,12 +1309,13 @@ function drake_ci_behat_test($context) {
     }
   }
 
+  // Make sure the behat-dir is absolute and have no trailing slash.
   if (strpos($context['behat-dir'], '/') !== 0) {
     // Make the relative path absolute.
     $behat_dir = $context['root'] . '/' . $context['behat-dir'];
   }
   else {
-    // Already absolute, nothign to do.
+    // Already absolute, nothing to do.
     $behat_dir = $context['behat-dir'];
   }
   $behat_dir = rtrim($behat_dir, '/');
@@ -1432,7 +1433,6 @@ function drake_ci_behat_test($context) {
   fclose($fh);
 
   // Populate the database by either importing a dump or site-installing.
-
   $sqldump_path = $target_site_path . '/database.sql';
   $drush_invoke_options['root'] = $context['root'];
   $drush_invoke_options['uri'] = $site_local_uri;
@@ -1504,7 +1504,7 @@ function drake_ci_behat_test($context) {
   ), 'ok');
 
 
-  // prepare a sites.php if site-host is set.
+  // Prepare a sites.php if site-host is set.
   if (!empty($context['test-host'])) {
     $sites_php = $context['root'] . '/sites/' . 'sites.php';
     if (file_exists($sites_php)) {
