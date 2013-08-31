@@ -1198,7 +1198,7 @@ $actions['run-behat'] = array(
   'default_message' => 'Behat.',
   'callback' => 'drake_ci_behat_test',
   'parameters' => array(
-    'output-dir' => 'Directory to output junit compatible output to',
+    'output-dir' => 'Directory to output to',
     'behat-features' => array(
       'description' => 'Behat features to execute, relative to behat-dir. Defaults to "features/"',
       'default' => 'features/',
@@ -1529,13 +1529,13 @@ function drake_ci_behat_test($context) {
   }
 
   // Use a temporary log file, to avoid buffers being filled.
-  $stdout = $output_dir . '/behat-saucelabs-' . $port . '-' . posix_getpid() . '.log';
-  $errout = $output_dir . '/behat-saucelabs-error-' . $port . '-' . posix_getpid() . '.log';
+  $stdout_logfile = $output_dir . '/behat-saucelabs-' . $port . '-' . posix_getpid() . '.log';
+  $errout_logfile = $output_dir . '/behat-saucelabs-error-' . $port . '-' . posix_getpid() . '.log';
   drush_register_file_for_deletion($log_file);
   $descriptorspec = array(
     0 => array('file', '/dev/null', 'r'),
-    1 => array('file', $stdout, 'w'),
-    2 => array('file', $errout, 'w'),
+    1 => array('file', $stdout_logfile, 'w'),
+    2 => array('file', $errout_logfile, 'w'),
   );
 
   $mink_extension_params = array (
@@ -1582,7 +1582,11 @@ function drake_ci_behat_test($context) {
   }
   $behat_proc_env_pretty = implode(':', $behat_proc_env_pretty);
 
-  $cmd = 'behat -v -c ' . escapeshellarg($behat_config) . ' -f junit --out ' . escapeshellarg($output_dir) . ' ' . escapeshellarg($behat_features);
+  // The HTML and Junit formatter needs a file and dir respectivly.
+  $out_html = $output_dir . '/behat-result.html';
+  $out_junit = $output_dir;
+
+  $cmd = 'behat -v -c ' . escapeshellarg($behat_config) . ' -f pretty,junit,html --out ,' . escapeshellarg($out_junit) . ',' . escapeshellarg($out_html) . ' ' . escapeshellarg($behat_features);
   drush_log(dt('Running ' . $cmd . ' in behat-dir: %dir with environment %env', array('%dir' => $behat_dir, '%env' => $behat_proc_env_pretty)), 'debug');
   drush_log(dt('Starting behat session named %session', array('%session' => $context['selenium-cap-name'])), 'ok');
   $behat_process = proc_open($cmd, $descriptorspec, $pipes, $behat_dir, $behat_proc_env);
@@ -1623,10 +1627,10 @@ function drake_ci_behat_test($context) {
   drush_log(dt('Behat execution completed in %sec seconds, output can be found in %outputdir', array('%sec' => (time() - $start), '%outputdir' => $output_dir)), 'ok');
   // Check status and finish up.
   if ($proc_status['exitcode'] !== 0) {
-    drush_log("Behat error output", 'notice');
-    $errorout_lines = file($errout);
+    drush_log("Behat error output", 'error');
+    $errorout_lines = file($errout_logfile);
     foreach ($errorout_lines as $line) {
-      drush_log($line, 'notice');
+      drush_log(rtrim($line), 'error');
     }
 
     return drake_action_error(dt('Non-zero exit-code(%exit) from behat indicates an error during execution, marking test as failed', array('%exit' => $proc_status['exitcode'])));
