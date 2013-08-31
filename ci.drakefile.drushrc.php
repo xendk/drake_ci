@@ -1161,7 +1161,7 @@ $tasks['ci-run-behat'] = array(
   'baseline-package' => context_optional('baseline-package'),
   'db-su' => context('db-su'),
   'db-su-pw' => context_optional('db-su-pw'),
-  'selenium-wd-host' => context('selenium-wd-host'),
+  'selenium-wd-host' => context_optional('selenium-wd-host'),
   // TODO: Get this from the main site?
   'profile' => context_optional('profile'),
   'site-port' => context_optional('site-port'),
@@ -1216,7 +1216,11 @@ $actions['run-behat'] = array(
       'description' => 'Password for the database Superuser',
       'default' => NULL,
     ),
-    'selenium-wd-host' => 'Webdriver host, eg "username:xxxxxxxxx-xxxxx-xxxx-xxxx-xxxxxxxxxx@ondemand.saucelabs.com/wd/hub"',
+    'selenium-wd-host' => array(
+      'description' => 'Webdriver host',
+      'default' => NULL,
+    ),
+
     'baseline-package' => array(
       'description' => 'Baseline package - an aegir backup',
       'default' => NULL,
@@ -1536,10 +1540,11 @@ function drake_ci_behat_test($context) {
 
   $mink_extension_params = array (
     'base_url' => 'http://' . (!empty($context['test-host']) ? $context['test-host'] : $context['site-host']) . ':' . (!empty($context['test-port']) ? $context['test-port'] : $port),
-    'selenium2' => array(
-      'wd_host' => $context['selenium-wd-host'],
-    ),
   );
+
+  if (!empty($context['selenium-wd-host'])) {
+    $mink_extension_params['selenium2']['wd_host'] = $context['selenium-wd-host'];
+  }
 
   if (!empty($context['capabilities'])) {
     $mink_extension_params['selenium2']['capabilities'] = $context['capabilities'];
