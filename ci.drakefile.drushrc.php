@@ -1172,6 +1172,7 @@ $tasks['ci-run-behat'] = array(
   'behat-features' => context_optional('behat-features'),
   'behat-config' => context_optional('behat-config'),
   'behat-dir' => context_optional('behat-dir'),
+  'generate-sites-php' => context_optional('generate-sites-php'),
 );
 
 // See http://saucelabs.com/docs/additional-config#desired-capabilities
@@ -1355,8 +1356,6 @@ function drake_ci_behat_test($context) {
     drush_register_file_for_deletion($target_site_path, TRUE);
   }
 
-  $oldcwd = getcwd();
-  chdir($target_site_path);
   // Prepare a sites.php if site-host is set.
   if (!empty($context['test-host']) && $context['test-host'] != $context['site-host']) {
     if (!$context['generate-sites-php']) {
@@ -1394,6 +1393,10 @@ function drake_ci_behat_test($context) {
   }
 
   if (file_exists($context['baseline-package'])) {
+    // Cd to the site-directory to untar the baseline package.
+    $oldcwd = getcwd();
+    chdir($target_site_path);
+
     // Unpack baseline package.
     // Method taken from backup.provision.inc from aegirs provision.
     $command = 'gunzip -c %s | tar pxf -';
@@ -1407,6 +1410,10 @@ function drake_ci_behat_test($context) {
     drush_log(dt('Unpacking baseline package %package into %target.', array('%package' => $pathinfo['filename'], '%target' => $site_dir)), 'ok');
 
     $result = drush_shell_exec($command, $context['baseline-package']);
+
+    // Done, go back to original dir.
+    chdir($oldcwd);
+
     if (!$result) {
       return drake_action_error(dt('Could not unpack baseline package %package into the temporary site-dir %target.', array('%package' => $context['baseline-package'], '%target' => $target_site_path)));
     }
@@ -1696,8 +1703,6 @@ EOT;
   if ($force_exit) {
     return drake_action_error(dt('Gave up waiting for behat to complete, more than %max second passed.', array('%max' => $max_executiontime)));
   }
-  // Done, go back to original dir.
-  chdir($oldcwd);
 
   drush_log(dt('Behat execution completed in %sec seconds, output can be found in %outputdir', array('%sec' => (time() - $start), '%outputdir' => $output_dir)), 'ok');
   // Check status and finish up.
