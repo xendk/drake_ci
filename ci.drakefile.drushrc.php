@@ -1363,7 +1363,7 @@ function drake_ci_behat_test($context) {
     if (!$context['generate-sites-php']) {
       // Entry in sites.php needed by auto-generation is disabled (default).
       // Issue a warning and continue.
-      drush_log("test-host and site-host differs, please make sure sites.php maps the external hostname to the local site or enable automatic sites.php generation via generate-sites-php", 'success');
+      drush_log("test-host and site-host differs, please make sure sites.php maps the external hostname to the local site or enable automatic sites.php generation via generate-sites-php", 'warning');
     }
     else {
       // User has requested a sites.php to be generated automatically, generate
