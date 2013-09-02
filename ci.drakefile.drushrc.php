@@ -1330,8 +1330,8 @@ function drake_ci_behat_test($context) {
   }
   $behat_dir = rtrim($behat_dir, '/');
   if (!is_dir($behat_dir) or !is_readable($behat_dir)) {
-    // "Soft" error as the directory simply might just be missing on this branch.
-    drush_log(dt('Could not access behat-dir %behat_dir, skipping test-run', array('%behat_dir' => $behat_dir), 'error');
+    // "Soft", directory might just be missing on this branch.
+    drush_log(dt('Could not access behat-dir %behat_dir, skipping test-run', array('%behat_dir' => $behat_dir)), 'warning');
     return TRUE;
   }
 
