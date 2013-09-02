@@ -1257,6 +1257,10 @@ $actions['run-behat'] = array(
       'description' => 'Maximum number of seconds we should wait for Behat to execute',
       'default' => 60 * 60,
     ),
+    'generate-sites-php' => array(
+      'description' => 'Generate a sites.php if site-host and test-host differs',
+      'default' => FALSE,
+    ),
     // TODO: Allow modules to be enabled/disabled prior to execution.
   ),
 );
@@ -1353,6 +1357,41 @@ function drake_ci_behat_test($context) {
 
   $oldcwd = getcwd();
   chdir($target_site_path);
+  // Prepare a sites.php if site-host is set.
+  if (!empty($context['test-host']) && $context['test-host'] != $context['site-host']) {
+    if (!$context['generate-sites-php']) {
+      // Entry in sites.php needed by auto-generation is disabled (default).
+      // Issue a warning and continue.
+      drush_log("test-host and site-host differs, please make sure sites.php maps the external hostname to the local site or enable automatic sites.php generation via generate-sites-php", 'success');
+    }
+    else {
+      // User has requested a sites.php to be generated automatically, generate
+      // one while preserving any existing sites.php by moving it out of the way
+      // temporarily.
+      $sites_php = $context['root'] . '/sites/' . 'sites.php';
+      if (file_exists($sites_php)) {
+        if (!rename($sites_php, $sites_php . "_org")) {
+          return drake_action_error(dt('Could not rename %file.', array('%file', $sites_php)));
+        }
+      }
+
+      // Make sure the original file is restored after we are done.
+      register_shutdown_function(function () use ($sites_php) {
+        unlink($sites_php);
+        rename($sites_php . "_org", $sites_php);
+      });
+
+      // Write our own sites.php truncating any existing file.
+      $fh = fopen($sites_php, 'w+');
+      if (!$fh) {
+        return drake_action_error(dt('Could not write to %file, the file needs to be updated as test-host differs from site-host.', array('%file', $sites_php)));
+      }
+      $buffer = "<?php\n";
+      $buffer .= "\$sites['" . $context['test-host'] . "'] = '" . $site_dir . "';\n";
+      fwrite($fh, $buffer);
+      fclose($fh);
+    }
+  }
 
   if (file_exists($context['baseline-package'])) {
     // Unpack baseline package.
@@ -1507,31 +1546,6 @@ function drake_ci_behat_test($context) {
       '%port' => $port,
       '%proc' => $php_process)
   ), 'ok');
-
-
-  // Prepare a sites.php if site-host is set.
-  if (!empty($context['test-host'])) {
-    $sites_php = $context['root'] . '/sites/' . 'sites.php';
-    if (file_exists($sites_php)) {
-      if (!rename($sites_php, $sites_php . "_temp")) {
-        return drake_action_error(dt('Could not rename %file.', array('%file', $sites_php)));
-      }
-    }
-    register_shutdown_function(function () use ($sites_php) {
-      unlink($sites_php);
-      rename($sites_php . "_temp", $sites_php);
-    });
-
-    // Create / Update settings.php,
-    $fh = fopen($sites_php, 'w+');
-    if (!$fh) {
-      return drake_action_error(dt('Could not write to %file, the file needs to be updated as test-host differs from site-host.', array('%file', $sites_php)));
-    }
-    $buffer = "<?php\n";
-    $buffer .= "\$sites['" . $context['test-host'] . "'] = '" . $site_dir . "';\n";
-    fwrite($fh, $buffer);
-    fclose($fh);
-  }
 
   // Use a temporary log file, to avoid buffers being filled.
   $stdout_logfile = $output_dir . '/behat-saucelabs-' . $port . '-' . posix_getpid() . '.log';
