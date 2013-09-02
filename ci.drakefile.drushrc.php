@@ -1298,6 +1298,11 @@ function drake_ci_behat_test($context) {
     $output_dir = $context['output-dir'];
   }
 
+  // Create the output_dir if it does not exist.
+  if (!file_exists($output_dir) && !mkdir($output_dir)) {
+    return drake_action_error(dt('Output dir "%output_dir" could not be found and could not be created.', array('%output_dir' => $output_dir)));
+  }
+
   // Prepare an absolute behat-dir and check it exists.
   if (empty($context['behat-dir'])) {
     // Generate a behatdir.
