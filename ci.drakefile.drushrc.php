@@ -1468,7 +1468,7 @@ function drake_ci_behat_test($context) {
     $drush_invoke_options['db-url'] = $db_url;
     $drush_invoke_options['sites-subdir'] = $site_dir;
 
-    drush_log(dt('Istalling site %sitedir with profile %profile', array('%sitedir' => $site_dir, '%profile' => $profile)), 'ok');
+    drush_log(dt('Installing site %sitedir with profile %profile', array('%sitedir' => $site_dir, '%profile' => $profile)), 'ok');
     $res = drush_invoke_process(NULL, 'site-install', $args, $drush_invoke_options, TRUE);
 
     if (!$res || $res['error_status'] != 0) {
