@@ -1576,11 +1576,13 @@ function drake_ci_behat_test($context) {
 
   $behat_config = $context['behat-config'];
 
+  // TODO: use a YAML parser.
   // Inject the video-url logger extension into behat-config.
   $behat_config_full = $behat_dir . '/' . $behat_config;
   if (!file_exists($behat_config_full) || !is_writable($behat_config_full)) {
     return drake_action_error(dt('Could not update behat-config %file, either file could not be found or written to.', array('%file' => $behat_config_full)));
   }
+  copy($behat_config_full, $behat_config_content . "_org");
   $behat_config_content = file_get_contents($behat_config_full);
   // Make sure the extension is not already in there.
   if (!preg_match('/log_videourl.php/m', $behat_config_content)) {
@@ -1589,11 +1591,15 @@ function drake_ci_behat_test($context) {
     // Find the extesions: entry, inject an indented entry after it.
     $behat_config_content = preg_replace('/(\s+)(extensions:).*$/m', "\$1\$2\$1  " . $behat_extension_path, $behat_config_content);
 
-    // Preserve the old file for easier debugging if something goes wrong.
-    copy($behat_config_full, $behat_config_full . '_old');
+    // Preserve the original file.
+    copy($behat_config_full, $behat_config_full . '_org');
     file_put_contents($behat_config_full, $behat_config_content);
-  }
 
+    // Make sure we move the original file back.
+    register_shutdown_function(function() use ($behat_config_full){
+      rename($behat_config_full . '.org', $behat_config_full);
+    });
+  }
   $behat_features = $context['behat-features'];
 
   $behat_proc_env = $_ENV;
