@@ -22,7 +22,7 @@ class LogVideoUrlListener implements EventSubscriberInterface
   public function logVideoUrl($event)
   {
     // Eg 'user:some-kind-of-guid@ondemand.saucelabs.com/wd/hub'.
-      if (!preg_match('/^(.*)@ondemand\.saucelabs\.com/', $this->wd_host, $matches)) {
+    if (!preg_match('/^(.*)@ondemand\.saucelabs\.com/', $this->wd_host, $matches)) {
       // Not a saucelabs wd_host.
       return;
     }
@@ -37,7 +37,7 @@ class LogVideoUrlListener implements EventSubscriberInterface
       $auth = hash_hmac('md5', $session_id, $credentials);
 
       $video_url = 'https://saucelabs.com/jobs/' . $session_id . '?auth=' . $auth;
-      print($video_url . "\n");
+      print ($video_url . "\n");
     }
   }
 }
