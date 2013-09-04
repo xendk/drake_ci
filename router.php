@@ -1,25 +1,12 @@
 <?php
+// Snippet from https://drupal.org/files/router-1543858-3.patch
+// Also see https://drupal.org/node/1543858
 
-/**
- * @file
- * Router for using with php -s.
- *
- * Adapted from
- * http://stackoverflow.com/questions/11432507/serving-drupal-7-with-built-in-php-5-4-server#11438771
- */
-if (preg_match("/\.(engine|inc|info|install|make|module|profile|test|po|sh|.*sql|theme|tpl(\.php)?|xtmpl)/", $_SERVER["REQUEST_URI"])) {
-  // File type is not allowed.
-  print "Error\n";
-}
-elseif (preg_match("/(^|\/)\./", $_SERVER["REQUEST_URI"])) {
-  // Serve the request as-is.
+$url = parse_url($_SERVER["REQUEST_URI"]);
+if (file_exists('.' . $url['path'])) {
+  // Serve the requested resource as-is.
   return FALSE;
 }
-elseif (file_exists($_SERVER["DOCUMENT_ROOT"] . $_SERVER["SCRIPT_NAME"])) {
-  return FALSE;
-}
-else {
-  // Feed everything else to Drupal via the "q" GET variable.
-  $_GET["q"] = $_SERVER["REQUEST_URI"];
-  include "index.php";
-}
+// Remove opener slash.
+$_GET['q'] = substr($url['path'], 1);
+include 'index.php';

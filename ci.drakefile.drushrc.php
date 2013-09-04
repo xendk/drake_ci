@@ -7,6 +7,11 @@
 
 $api = 1;
 
+/**
+ * Prefix used for Selenium Desired Capability parameters.
+ */
+define('SELENIUM_CAP_PREFIX', 'selenium-cap-');
+
 /*
  * Default context for tasks.
  */
@@ -205,6 +210,8 @@ require_once dirname(__FILE__) . '/tasks/run-simpletests.inc';
 
 require_once dirname(__FILE__) . '/tasks/package-zip.inc';
 
+require_once dirname(__FILE__) . '/tasks/run-behat.inc';
+
 /*
  * Clean up output directory, if specified.
  */
@@ -243,6 +250,45 @@ function drake_ci_clean($context) {
 /*
  * Helper functions for action callbacks.
  */
+
+/**
+ * Shutdown function to end the PHP server process.
+ */
+function _drake_ci_kill_process_shutdown($process) {
+  drush_log("Cleaning up processes after shutdown");
+  // We assume that all is dandy if the server is still running. Can't count on
+  // return code from proc_close.
+  $proc_status = proc_get_status($process);
+  $php_rc = $proc_status["running"] ? 0 : $proc_status["exitcode"];
+  if ($php_rc != 0) {
+    drush_set_error('PHP_SERVER_ERROR', dt("The PHP server process returned error."));
+  }
+
+  if ($proc_status['running'] && $proc_status['pid']) {
+    drush_log(dt('Process started by command "%cmd" is still runnning, killing...', array('%cmd' => $proc_status['command'])));
+    // In some PHP versions, the child process isn't php, but sh. Try to find
+    // the child processes of the process and kill them off by hand first.
+    $ppid = $proc_status['pid'];
+    $pids = array();
+    // Get any children of the sub process by asking ps for a list of processes
+    // with their parent pid and looking through it for our subprocess. On Linux
+    // the right options to ps can give just the children, but this has the
+    // advantage of also working on OSX.
+    drush_shell_exec("ps -o pid,ppid -ax");
+    foreach (drush_shell_exec_output() as $line) {
+      if (preg_match('/^\s*([0-9]+)\s*' . $proc_status['pid'] . '\s*$/', $line, $m)) {
+        $pids[] = $m[1];
+      }
+    }
+    foreach ($pids as $pid) {
+      drush_log("Killing process with pid " . $pid);
+      posix_kill($pid, 2);
+    }
+    // Terminate the main child process.
+    proc_terminate($process);
+  }
+  proc_close($process);
+}
 
 /**
  * Execute a command that might use a non-zero exit code.
