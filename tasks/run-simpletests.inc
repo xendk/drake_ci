@@ -162,7 +162,7 @@ function drake_ci_run_simpletests($context) {
   );
   // We'd like to use drush runserver instead, but in initial testing runserver
   // would cause core tests to fail on login, while this would not.
-  $process = proc_open('php -S localhost:' . $port . ' ' . dirname(__FILE__) . '/router.php', $descriptorspec, $pipes);
+  $process = proc_open('php -S localhost:' . $port . ' ' . dirname(dirname(__FILE__)) . '/router.php', $descriptorspec, $pipes);
   if (!$process) {
     return drake_action_error(dt('Could not start internal web server.'));
   }
