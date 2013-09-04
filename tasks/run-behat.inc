@@ -380,7 +380,7 @@ function drake_ci_behat_test($context) {
 
   // We'd like to use drush runserver instead, but in initial testing runserver
   // would cause core tests to fail on login, while this would not.
-  $cmd = 'php -t ' . $context['root'] . ' -S ' . $site_local_uri . ' ' . dirname(__FILE__) . '/router.php';
+  $cmd = 'php -t ' . $context['root'] . ' -S ' . $site_local_uri . ' ' . dirname(__FILE__) . '/../router.php';
   drush_log("Executing command " . $cmd, 'debug');
   $php_process = proc_open($cmd, $descriptorspec, $pipes, $context['root']);
   register_shutdown_function('_drake_ci_kill_process_shutdown', $php_process);
