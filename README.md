@@ -58,7 +58,7 @@ you wish the reports to be written. This is most interesting in
 conjunction with a CI server, as it allows the CI server to analyze
 the files.
 
-For external tools, see ci.drakefile.drushrc.php for hints on how to
+For external tools, see tasks/*.inc for hints on how to
 install them.
 
 php-lint
