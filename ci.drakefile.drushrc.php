@@ -50,6 +50,7 @@ $filesets['php-generated'] = array(
 $filesets['contrib'] = array(
   'include' => array(
     '**/contrib/**',
+    '**/development/**',
     '**/libraries/**',
   ),
 );
