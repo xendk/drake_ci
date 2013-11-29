@@ -6,6 +6,7 @@ $tasks['ci-run-behat'] = array(
   'baseline-package' => context_optional('baseline-package'),
   'db-su' => context('db-su'),
   'db-su-pw' => context_optional('db-su-pw'),
+  'php' => context_optional('php'),
   'selenium-wd-host' => context_optional('selenium-wd-host'),
   // TODO: Get this from the main site?
   'profile' => context_optional('profile'),
@@ -61,6 +62,10 @@ $actions['run-behat'] = array(
     'db-su-pw' => array(
       'description' => 'Password for the database Superuser',
       'default' => NULL,
+    ),
+    'php' => array(
+      'description' => 'full path to the php-executable to use, defaults to php (ie. first php on path)',
+      'default' => 'php',
     ),
     'selenium-wd-host' => array(
       'description' => 'Webdriver host',
@@ -380,7 +385,8 @@ function drake_ci_behat_test($context) {
 
   // We'd like to use drush runserver instead, but in initial testing runserver
   // would cause core tests to fail on login, while this would not.
-  $cmd = 'php -t ' . $context['root'] . ' -S ' . $site_local_uri . ' ' . dirname(dirname(__FILE__)) . '/router.php';
+
+  $cmd = $context['php'] . ' -t ' . $context['root'] . ' -S ' . $site_local_uri . ' ' . dirname(dirname(__FILE__)) . '/router.php';
   drush_log("Executing command " . $cmd, 'debug');
   $php_process = proc_open($cmd, $descriptorspec, $pipes, $context['root']);
   register_shutdown_function('_drake_ci_kill_process_shutdown', $php_process);
