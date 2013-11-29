@@ -461,7 +461,7 @@ function drake_ci_behat_test($context) {
   // Make sure the extension is not already in there.
   if (!preg_match('/log_videourl.php/m', $behat_config_content)) {
     // A bit crude, but should work for now.
-    $behat_extension_path = "'" . dirname(__FILE__) . "/behat_extensions/log_videourl.php': ~";
+    $behat_extension_path = "'" . dirname(__FILE__) . "/../behat_extensions/log_videourl.php': ~";
     // Find the extesions: entry, inject an indented entry after it.
     $behat_config_content = preg_replace('/(\s+)(extensions:).*$/m', "\$1\$2\$1  " . $behat_extension_path, $behat_config_content);
 
